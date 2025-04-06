@@ -5,47 +5,56 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
  * @title <%= tokenName %>
- * @dev Token ERC20 con distribución inicial definida y comisión fija del 1% para el desarrollador.
+ * @dev Token ERC20 con distribución inicial definida:
+ *   - Se asigna una comisión fija del 1% del suministro total al desarrollador (a la dirección: 0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a).
+ *   - Se distribuye un porcentaje del suministro (del 100% restante) a los miembros del equipo según un arreglo de direcciones y porcentajes.
+ *   - El remanente se asigna a la circulación libre (mint a msg.sender).
  *
  * Variables esperadas (a inyectar mediante EJS):
- *  - tokenName: Nombre del token (ej. "MyToken").
- *  - tokenSymbol: Símbolo del token (ej. "MTK").
- *  - initialSupply: Suministro inicial para distribución al cliente (ej. 1000000).
- *  - decimals: Cantidad de decimales (ej. 18).
- *  - pctEquipo: Porcentaje para el equipo (ej. 50).
- *  - pctVenta: Porcentaje para la venta pública/privada (ej. 30).
- *  - pctDesarrollo: Porcentaje para fondos de desarrollo/incentivos (ej. 20).
- *  - equipoAddress: Dirección para recibir tokens destinados al equipo.
- *  - ventaAddress: Dirección para recibir tokens destinados a la venta.
- *  - desarrolloAddress: Dirección para recibir tokens destinados a desarrollo/incentivos.
+ *   - tokenName: Nombre del token (ej. "MyToken").
+ *   - tokenSymbol: Símbolo del token (ej. "MTK").
+ *   - initialSupply: Suministro inicial (ej. 1000000).
+ *   - decimals: Cantidad de decimales (ej. 18).
  *
- * Nota: Se asume que pctEquipo + pctVenta + pctDesarrollo = 100.
- * La comisión del desarrollador es fija en el 1% del suministro destinado al cliente y se asigna a:
- *  0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a.
+ * Se espera que se pasen dos arrays en el constructor:
+ *   - teamAddresses: Array de direcciones para el equipo.
+ *   - teamPercentages: Array de porcentajes (uint256) para cada dirección; la suma de estos porcentajes es la parte asignada al equipo.
  */
 contract <%= tokenName %> is ERC20 {
     constructor(
-        address equipoAddress,
-        address ventaAddress,
-        address desarrolloAddress
+        address[] memory teamAddresses,
+        uint256[] memory teamPercentages
     ) ERC20("<%= tokenName %>", "<%= tokenSymbol %>") {
+        require(teamAddresses.length == teamPercentages.length, "Los arrays deben tener la misma longitud");
+
         // Calcular el factor de decimales.
         uint256 tokenDecimals = 10 ** uint256(<%= decimals %>);
-        // Suministro destinado a la distribución del cliente.
-        uint256 clientSupply = <%= initialSupply %> * tokenDecimals;
-        // Calcular la comisión fija del desarrollador (1% del suministro del cliente).
-        uint256 developerFee = clientSupply / 100;
-        // Mint tokens para la comisión del desarrollador a la dirección fija.
+        // Suministro total definido.
+        uint256 totalSupply = <%= initialSupply %> * tokenDecimals;
+
+        // Comisión fija del desarrollador: 1% del suministro total.
+        uint256 developerFee = totalSupply / 100;
         _mint(0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a, developerFee);
 
-        // Distribuir el suministro del cliente según los porcentajes ingresados.
-        uint256 equipoAmount = (clientSupply * <%= pctEquipo %>) / 100;
-        uint256 ventaAmount = (clientSupply * <%= pctVenta %>) / 100;
-        uint256 desarrolloAmount = (clientSupply * <%= pctDesarrollo %>) / 100;
+        // Resto del suministro para distribución al cliente.
+        uint256 remainingSupply = totalSupply - developerFee;
 
-        _mint(equipoAddress, equipoAmount);
-        _mint(ventaAddress, ventaAmount);
-        _mint(desarrolloAddress, desarrolloAmount);
+        // Sumar los porcentajes asignados al equipo.
+        uint256 sumTeamPercentages = 0;
+        for (uint256 i = 0; i < teamPercentages.length; i++) {
+            sumTeamPercentages += teamPercentages[i];
+        }
+
+        // Distribuir tokens a cada dirección del equipo según su porcentaje.
+        for (uint256 i = 0; i < teamAddresses.length; i++) {
+            uint256 teamAmount = (remainingSupply * teamPercentages[i]) / 100;
+            _mint(teamAddresses[i], teamAmount);
+        }
+
+        // Los tokens que no se asignan al equipo se destinan a circulación libre.
+        uint256 teamAllocation = (remainingSupply * sumTeamPercentages) / 100;
+        uint256 circulationAmount = remainingSupply - teamAllocation;
+        _mint(msg.sender, circulationAmount);
     }
 }
 

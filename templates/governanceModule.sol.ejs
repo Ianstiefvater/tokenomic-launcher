@@ -63,8 +63,8 @@ abstract contract GovernanceModule {
      */
     function vote(uint256 proposalId, bool support, uint256 weight) public virtual {
         Proposal storage proposal = proposals[proposalId];
-        require(block.timestamp < proposal.deadline, "La votacion ha finalizado");
-        require(!hasVoted[proposalId][msg.sender], "Ya has votado en esta propuesta");
+        require(block.timestamp < proposal.deadline, "Voting has ended");
+        require(!hasVoted[proposalId][msg.sender], "You have already voted on this proposal");
         hasVoted[proposalId][msg.sender] = true;
         if (support) {
             proposal.voteFor += weight;
@@ -80,10 +80,10 @@ abstract contract GovernanceModule {
      */
     function executeProposal(uint256 proposalId) public virtual {
         Proposal storage proposal = proposals[proposalId];
-        require(block.timestamp >= proposal.deadline, "La votacion aun no finaliza");
-        require(!proposal.executed, "La propuesta ya fue ejecutada");
+        require(block.timestamp >= proposal.deadline, "Voting is not yet complete");
+        require(!proposal.executed, "The proposal has already been executed");
         uint256 totalVotes = proposal.voteFor + proposal.voteAgainst;
-        require(totalVotes >= quorum, "No se alcanzo el quorum requerido");
+        require(totalVotes >= quorum, "The required quorum was not reached");
         bool approved = proposal.voteFor > proposal.voteAgainst;
         proposal.executed = true;
         emit ProposalExecuted(proposalId, approved);

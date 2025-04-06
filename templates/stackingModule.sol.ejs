@@ -34,9 +34,9 @@ abstract contract StakingModule {
      * @param amount La cantidad de tokens que se van a bloquear.
      */
     function stake(uint256 amount) public virtual {
-        require(amount > 0, "La cantidad debe ser mayor a 0");
+        require(amount > 0, "The amount must be greater than 0");
         Stake storage userStake = stakes[msg.sender];
-        require(userStake.amount == 0, "Ya tienes staking activo");
+        require(userStake.amount == 0, "You already have active staking");
         userStake.amount = amount;
         userStake.startTime = block.timestamp;
         emit Staked(msg.sender, amount);
@@ -48,8 +48,8 @@ abstract contract StakingModule {
      */
     function unstake() public virtual {
         Stake storage userStake = stakes[msg.sender];
-        require(userStake.amount > 0, "No hay staking activo");
-        require(block.timestamp >= userStake.startTime + minStakingPeriod, "Periodo minimo de staking no cumplido");
+        require(userStake.amount > 0, "There is no active staking");
+        require(block.timestamp >= userStake.startTime + minStakingPeriod, "Minimum staking period not met");
         uint256 reward = calculateReward(msg.sender);
         uint256 totalAmount = userStake.amount + reward;
         // Reiniciamos el registro de staking del usuario.
