@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @title GovernanceModule
+ * @dev Módulo para implementar mecanismos de gobernanza en el token.
+ * Variables esperadas:
+ *   - proposalThreshold: porcentaje mínimo de tokens necesarios para proponer cambios.
+ *   - quorum: porcentaje mínimo de participación requerido para aprobar una propuesta.
+ *   - weightedByStaking: booleano que indica si los votos se ponderan según el tiempo de staking.
+ */
+abstract contract GovernanceModule {
+    // Porcentaje mínimo de tokens requeridos para proponer una iniciativa.
+    uint256 public proposalThreshold = <%= proposalThreshold %>;
+    // Porcentaje mínimo de votos (quorum) para que una propuesta sea aprobada.
+    uint256 public quorum = <%= quorum %>;
+    // Indica si el voto se pondera en función del tiempo de staking.
+    bool public weightedByStaking = <%= weightedByStaking %>;
+
+    struct Proposal {
+        uint256 id;
+        address proposer;
+        string description;
+        uint256 voteFor;
+        uint256 voteAgainst;
+        uint256 deadline;
+        bool executed;
+    }
+    
+    uint256 public proposalCount;
+    mapping(uint256 => Proposal) public proposals;
+    mapping(uint256 => mapping(address => bool)) public hasVoted;
+
+    event ProposalCreated(uint256 id, address proposer, string description, uint256 deadline);
+    event Voted(uint256 proposalId, address voter, bool support, uint256 weight);
+    event ProposalExecuted(uint256 id, bool approved);
+
+    /**
+     * @dev Crea una nueva propuesta de gobernanza.
+     * @param description Descripción de la propuesta.
+     * @param duration Duración de la votación en segundos.
+     */
+    function createProposal(string memory description, uint256 duration) public virtual {
+        // Se debe validar que el proponente cumple con el umbral de tokens.
+        proposalCount++;
+        proposals[proposalCount] = Proposal({
+            id: proposalCount,
+            proposer: msg.sender,
+            description: description,
+            voteFor: 0,
+            voteAgainst: 0,
+            deadline: block.timestamp + duration,
+            executed: false
+        });
+        emit ProposalCreated(proposalCount, msg.sender, description, block.timestamp + duration);
+    }
+
+    /**
+     * @dev Permite a un usuario votar en una propuesta.
+     * @param proposalId ID de la propuesta.
+     * @param support true para votar a favor, false en contra.
+     * @param weight Peso del voto, que puede estar determinado por la cantidad de tokens o tiempo de staking.
+     */
+    function vote(uint256 proposalId, bool support, uint256 weight) public virtual {
+        Proposal storage proposal = proposals[proposalId];
+        require(block.timestamp < proposal.deadline, "La votacion ha finalizado");
+        require(!hasVoted[proposalId][msg.sender], "Ya has votado en esta propuesta");
+        hasVoted[proposalId][msg.sender] = true;
+        if (support) {
+            proposal.voteFor += weight;
+        } else {
+            proposal.voteAgainst += weight;
+        }
+        emit Voted(proposalId, msg.sender, support, weight);
+    }
+
+    /**
+     * @dev Ejecuta la propuesta si se cumplen las condiciones (por ejemplo, quorum alcanzado).
+     * @param proposalId ID de la propuesta.
+     */
+    function executeProposal(uint256 proposalId) public virtual {
+        Proposal storage proposal = proposals[proposalId];
+        require(block.timestamp >= proposal.deadline, "La votacion aun no finaliza");
+        require(!proposal.executed, "La propuesta ya fue ejecutada");
+        uint256 totalVotes = proposal.voteFor + proposal.voteAgainst;
+        require(totalVotes >= quorum, "No se alcanzo el quorum requerido");
+        bool approved = proposal.voteFor > proposal.voteAgainst;
+        proposal.executed = true;
+        emit ProposalExecuted(proposalId, approved);
+        // Acciones adicionales según el resultado de la propuesta pueden implementarse aquí.
+    }
+}

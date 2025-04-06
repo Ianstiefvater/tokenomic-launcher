@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @title StakingModule
+ * @dev Módulo para implementar staking y yield farming.
+ * Variables esperadas:
+ *   - stakingRewardRate: tasa de recompensa anual en % (ejemplo: 10 para 10% anual).
+ *   - minStakingPeriod: período mínimo de bloqueo para staking, en segundos.
+ *   - yieldFarmingBonusRate: tasa adicional de recompensa para yield farming en % (0 si no aplica).
+ */
+abstract contract StakingModule {
+    // Tasa de recompensa anual en porcentaje.
+    uint256 public stakingRewardRate = <%= stakingRewardRate %>;
+    // Período mínimo de bloqueo para staking (en segundos).
+    uint256 public minStakingPeriod = <%= minStakingPeriod %>;
+    // Tasa adicional de recompensa para yield farming en porcentaje.
+    uint256 public yieldFarmingBonusRate = <%= yieldFarmingBonusRate %>;
+
+    // Estructura que almacena la información de staking de cada usuario.
+    struct Stake {
+        uint256 amount;
+        uint256 startTime;
+    }
+    
+    // Registro de staking por usuario.
+    mapping(address => Stake) public stakes;
+    
+    event Staked(address indexed staker, uint256 amount);
+    event Unstaked(address indexed staker, uint256 amount, uint256 reward);
+
+    /**
+     * @dev Permite a un usuario iniciar su staking.
+     * @param amount La cantidad de tokens que se van a bloquear.
+     */
+    function stake(uint256 amount) public virtual {
+        require(amount > 0, "La cantidad debe ser mayor a 0");
+        Stake storage userStake = stakes[msg.sender];
+        require(userStake.amount == 0, "Ya tienes staking activo");
+        userStake.amount = amount;
+        userStake.startTime = block.timestamp;
+        emit Staked(msg.sender, amount);
+    }
+
+    /**
+     * @dev Permite al usuario retirar su staking y reclamar recompensas.
+     * Calcula la recompensa acumulada según el tiempo de bloqueo.
+     */
+    function unstake() public virtual {
+        Stake storage userStake = stakes[msg.sender];
+        require(userStake.amount > 0, "No hay staking activo");
+        require(block.timestamp >= userStake.startTime + minStakingPeriod, "Periodo minimo de staking no cumplido");
+        uint256 reward = calculateReward(msg.sender);
+        uint256 totalAmount = userStake.amount + reward;
+        // Reiniciamos el registro de staking del usuario.
+        userStake.amount = 0;
+        userStake.startTime = 0;
+        emit Unstaked(msg.sender, totalAmount, reward);
+        // Se asume que la transferencia de tokens se implementa en el contrato principal.
+    }
+
+    /**
+     * @dev Calcula la recompensa acumulada para un usuario.
+     * La fórmula simplificada es:
+     * recompensa = (monto_staked * (stakingRewardRate + yieldFarmingBonusRate) * tiempo_acumulado) / (365 días * 100)
+     * @param staker Dirección del usuario.
+     * @return La recompensa calculada.
+     */
+    function calculateReward(address staker) public view virtual returns (uint256) {
+        Stake memory userStake = stakes[staker];
+        if(userStake.amount == 0) {
+            return 0;
+        }
+        uint256 stakingDuration = block.timestamp - userStake.startTime;
+        uint256 totalRate = stakingRewardRate + yieldFarmingBonusRate;
+        uint256 reward = (userStake.amount * totalRate * stakingDuration) / (365 days * 100);
+        return reward;
+    }
+}

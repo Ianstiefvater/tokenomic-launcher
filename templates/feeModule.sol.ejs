@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @title FeeModule
+ * @dev Módulo para manejar tarifas y comisiones en tokens.
+ * Variables esperadas (a inyectar mediante EJS):
+ *   - clientFeeRateBP: Tasa global de comisión definida por el cliente en basis points (ej: 200 para 2%).
+ *   La comisión del desarrollador es fija: 10 BP (0.1%).
+ *   - commissionReceiver: Dirección inmutable para recibir la comisión del desarrollador.
+ */
+abstract contract FeeModule {
+    // Tasa fija de comisión del desarrollador: 10 basis points = 0.1%.
+    uint256 public constant DEVELOPER_FEE_BP = 10;
+
+    // Tasa global de comisión definida por el cliente (en basis points, ej: 200 para 2%).
+    uint256 public clientFeeRateBP = <%= clientFeeRateBP %>;
+
+    // Dirección inmutable para la recepción de la comisión del desarrollador.
+    address public immutable commissionReceiver;
+
+    /**
+     * @dev Constructor que fija la dirección inmutable para la comisión del desarrollador.
+     * @param _commissionReceiver Dirección a la que se enviarán la comisión del desarrollador.
+     */
+    constructor(address _commissionReceiver) {
+        require(_commissionReceiver != address(0), "Dirección de comisión inválida");
+        commissionReceiver = _commissionReceiver;
+    }
+
+    /**
+     * @dev Calcula la comisión total basada en el monto dado y la tasa global definida por el cliente.
+     * @param amount Monto sobre el cual se calculará la comisión.
+     * @return totalFee La comisión total en tokens, calculada en basis points.
+     */
+    function _calculateTotalFee(uint256 amount) internal view returns (uint256) {
+        return (amount * clientFeeRateBP) / 10000;
+    }
+
+    /**
+     * @dev Calcula la parte correspondiente a la comisión del desarrollador.
+     * @param amount Monto sobre el cual se calculará la comisión.
+     * @return developerFee La comisión fija del desarrollador (en tokens), calculada en basis points.
+     */
+    function _calculateDeveloperFee(uint256 amount) internal pure returns (uint256) {
+        return (amount * DEVELOPER_FEE_BP) / 10000;
+    }
+
+    /**
+     * @dev Calcula la comisión restante para distribución (global menos la parte del desarrollador).
+     * @param amount Monto sobre el cual se calculará la comisión.
+     * @return distributionFee La comisión destinada a otros fines (en tokens).
+     */
+    function _calculateDistributionFee(uint256 amount) internal view returns (uint256) {
+        uint256 totalFee = _calculateTotalFee(amount);
+        uint256 developerFee = _calculateDeveloperFee(amount);
+        require(totalFee >= developerFee, "La comisión global debe ser mayor o igual a la comisión del desarrollador");
+        return totalFee - developerFee;
+    }
+
+    /**
+     * @dev Distribuye la comisión del desarrollador, enviando la parte fija a la dirección inmutable.
+     * Se asume que el contrato dispone de fondos suficientes (ETH o tokens).
+     * @param amount Monto total de la transacción.
+     */
+    function _distributeDeveloperFee(uint256 amount) internal {
+        uint256 developerFee = _calculateDeveloperFee(amount);
+        require(address(this).balance >= developerFee, "Saldo insuficiente para la comisión del desarrollador");
+        payable(commissionReceiver).transfer(developerFee);
+    }
+
+    /**
+     * @dev Procesa el total de la comisión: calcula la comisión global, extrae la parte del desarrollador,
+     * y retorna el total de la comisión para que el resto pueda ser distribuido según la lógica del token.
+     * @param amount Monto total de la transacción.
+     * @return totalFee La comisión global total calculada.
+     */
+    function _processFees(uint256 amount) internal returns (uint256 totalFee) {
+        totalFee = _calculateTotalFee(amount);
+        _distributeDeveloperFee(amount);
+        // La comisión restante para distribución se obtiene con _calculateDistributionFee(amount)
+        return totalFee;
+    }
+}

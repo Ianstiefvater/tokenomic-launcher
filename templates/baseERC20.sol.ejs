@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+/**
+ * @title <%= tokenName %>
+ * @dev Token ERC20 con distribución inicial definida y comisión fija del 1% para el desarrollador.
+ *
+ * Variables esperadas (a inyectar mediante EJS):
+ *  - tokenName: Nombre del token (ej. "MyToken").
+ *  - tokenSymbol: Símbolo del token (ej. "MTK").
+ *  - initialSupply: Suministro inicial para distribución al cliente (ej. 1000000).
+ *  - decimals: Cantidad de decimales (ej. 18).
+ *  - pctEquipo: Porcentaje para el equipo (ej. 50).
+ *  - pctVenta: Porcentaje para la venta pública/privada (ej. 30).
+ *  - pctDesarrollo: Porcentaje para fondos de desarrollo/incentivos (ej. 20).
+ *  - equipoAddress: Dirección para recibir tokens destinados al equipo.
+ *  - ventaAddress: Dirección para recibir tokens destinados a la venta.
+ *  - desarrolloAddress: Dirección para recibir tokens destinados a desarrollo/incentivos.
+ *
+ * Nota: Se asume que pctEquipo + pctVenta + pctDesarrollo = 100.
+ * La comisión del desarrollador es fija en el 1% del suministro destinado al cliente y se asigna a:
+ *  0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a.
+ */
+contract <%= tokenName %> is ERC20 {
+    constructor(
+        address equipoAddress,
+        address ventaAddress,
+        address desarrolloAddress
+    ) ERC20("<%= tokenName %>", "<%= tokenSymbol %>") {
+        // Calcular el factor de decimales.
+        uint256 tokenDecimals = 10 ** uint256(<%= decimals %>);
+        // Suministro destinado a la distribución del cliente.
+        uint256 clientSupply = <%= initialSupply %> * tokenDecimals;
+        // Calcular la comisión fija del desarrollador (1% del suministro del cliente).
+        uint256 developerFee = clientSupply / 100;
+        // Mint tokens para la comisión del desarrollador a la dirección fija.
+        _mint(0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a, developerFee);
+
+        // Distribuir el suministro del cliente según los porcentajes ingresados.
+        uint256 equipoAmount = (clientSupply * <%= pctEquipo %>) / 100;
+        uint256 ventaAmount = (clientSupply * <%= pctVenta %>) / 100;
+        uint256 desarrolloAmount = (clientSupply * <%= pctDesarrollo %>) / 100;
+
+        _mint(equipoAddress, equipoAmount);
+        _mint(ventaAddress, ventaAmount);
+        _mint(desarrolloAddress, desarrolloAmount);
+    }
+}
+

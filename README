@@ -1,0 +1,86 @@
+Notas de desarrollo en Template:
+
+# baseERC20.sol.ejs
+ * Variables esperadas (a inyectar mediante EJS):
+ *  - tokenName: Nombre del token (ej. "MyToken").
+ *  - tokenSymbol: Símbolo del token (ej. "MTK").
+ *  - initialSupply: Suministro inicial para distribución al cliente (ej. 1000000).
+ *  - decimals: Cantidad de decimales (ej. 18).
+ *  - pctEquipo: Porcentaje para el equipo (ej. 50).
+ *  - pctVenta: Porcentaje para la venta pública/privada (ej. 30).
+ *  - pctDesarrollo: Porcentaje para fondos de desarrollo/incentivos (ej. 20).
+ *  - equipoAddress: Dirección para recibir tokens destinados al equipo.
+ *  - ventaAddress: Dirección para recibir tokens destinados a la venta.
+ *  - desarrolloAddress: Dirección para recibir tokens destinados a desarrollo/incentivos.
+
+# vestingModule.ejs
+Variables que se esperan inyectar mediante EJS:
+
+beneficiary: Dirección del beneficiario (ej. "0xAbC123...9D"). Debe incluir comillas en el objeto de datos.
+
+revocable: Valor booleano (true o false).
+
+cliffDuration: Duración del período de cliff (en segundos).
+
+duration: Duración total del vesting (en segundos).
+
+La variable _start se proporcionará en el constructor al momento del despliegue (por ejemplo, el timestamp actual).
+
+# feeModule.ejs
+
+ * Variables esperadas (a inyectar mediante EJS):
+ *   - clientFeeRateBP: Tasa global de comisión definida por el cliente en basis points (ej: 200 para 2%).
+ *   La comisión del desarrollador es fija: 10 BP (0.1%).
+ *   - commissionReceiver: Dirección inmutable para recibir la comisión del desarrollador.
+
+# inflationModule.sol.ejs
+
+Variables esperadas (a inyectar mediante EJS):
+
+inflationType: Valor del enum (ejemplo: Fixed, Variable o Conditional).
+
+tokensPerBlock: (Para inflación fija) cantidad de tokens emitidos por bloque.
+
+initialInflationRate: (Para inflación variable) tasa inicial de inflación en porcentaje.
+
+adjustmentPeriod: (Para inflación variable) periodo de ajuste (en bloques o unidad definida).
+
+reductionFactor: (Para inflación variable) factor de reducción (%) por periodo.
+
+conditionThreshold: (Para inflación condicional) umbral que activa la inflación adicional.
+
+conditionalInflationRate: (Para inflación condicional) tasa de inflación a aplicar cuando se cumple la condición.
+
+# deflationModule.sol.ejs
+
+Variables esperadas (a inyectar mediante EJS):
+
+burnPercentage: Porcentaje de tokens a quemar en cada transacción (ejemplo: 2 para 2%).
+
+feeBurnPercentage: Porcentaje de las tarifas de transacción que se destina a quema.
+
+Además, se esperan parámetros para recompra y quema:
+
+buybackFrequency: Frecuencia (en bloques o tiempo) para ejecutar recompra.
+
+buybackPercentage: Porcentaje de fondos destinado a recompra y quema.
+
+# stackingModule.sol.ejs
+
+Variables esperadas (para inyección vía EJS):
+
+stakingRewardRate: Tasa de recompensa anual en porcentaje (por ejemplo, 10 para 10% anual).
+
+minStakingPeriod: Período mínimo de bloqueo en segundos para poder retirar el staking.
+
+yieldFarmingBonusRate: Tasa adicional (en %) para yield farming; puede ser 0 si no se aplica
+
+# governanceModule.sol.ejs
+
+Variables esperadas (para inyección vía EJS):
+
+proposalThreshold: Porcentaje mínimo de tokens necesarios para proponer cambios (ejemplo: 5 para 5%).
+
+quorum: Porcentaje mínimo de participación requerido para que una propuesta sea válida (ejemplo: 20 para 20%).
+
+weightedByStaking: Valor booleano (true o false) que indica si los votos se ponderan según el tiempo de staking.
