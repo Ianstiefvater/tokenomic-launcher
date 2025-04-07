@@ -1,80 +1,54 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-contract TokenVesting {
-    // La dirección del beneficiario debe ser proporcionada con comillas en el objeto de datos (ej. "0x1234...").
-    address public beneficiary = <%= beneficiary %>;
+abstract contract TokenVesting {
+    address public beneficiary = <%= vestingBeneficiary %>;
     uint256 public cliff;
     uint256 public start;
-    uint256 public duration;
+    uint256 public vestingDuration;
     bool public revocable = <%= revocable %>; // true o false
 
     uint256 public released;
     bool public revoked;
+    address public owner;
 
     event TokensReleased(uint256 amount);
     event VestingRevoked();
 
     function _transferVestedTokens(address beneficiary, uint256 amount) internal virtual;
 
-    /**
-     * @dev Constructor para configurar el vesting.
-     * @param _start Tiempo de inicio en Unix timestamp.
-     */
     constructor(uint256 _start) {
-        // Se espera que `beneficiary` ya se haya inyectado correctamente.
-        beneficiary = <%= beneficiary %>;
+        owner = msg.sender;
+        beneficiary = <%= vestingBeneficiary %>;
         start = _start;
-        // `cliffDuration` y `duration` deben ser especificados en segundos.
         cliff = _start + <%= cliffDuration %>;
-        duration = <%= duration %>;
+        vestingDuration = <%= vestingDuration %>;
     }
 
-    /**
-     * @dev Libera los tokens que hayan sido adquiridos.
-     * @param totalBalance El balance total de tokens asignados para vesting.
-     */
     function release(uint256 totalBalance) public {
         require(block.timestamp >= cliff, "Tokens are still in cliff period");
         uint256 unreleased = releasableAmount(totalBalance);
         require(unreleased > 0, "No tokens are due for release");
         released += unreleased;
         _transferVestedTokens(beneficiary, unreleased);
-        // generalmente integrando esta función con el contrato token.
         emit TokensReleased(unreleased);
     }
 
-    /**
-     * @dev Calcula la cantidad de tokens que se pueden liberar.
-     * @param totalBalance Balance total asignado.
-     * @return La cantidad de tokens liberables.
-     */
     function releasableAmount(uint256 totalBalance) public view returns (uint256) {
         return vestedAmount(totalBalance) - released;
     }
 
-    /**
-     * @dev Calcula la cantidad de tokens adquiridos hasta el momento.
-     * @param totalBalance Balance total asignado.
-     * @return La cantidad de tokens que han sido adquiridos.
-     */
     function vestedAmount(uint256 totalBalance) public view returns (uint256) {
         if (block.timestamp < cliff) {
             return 0;
-        } else if (block.timestamp >= start + duration || revoked) {
+        } else if (block.timestamp >= start + vestingDuration || revoked) {
             return totalBalance;
         } else {
-            return (totalBalance * (block.timestamp - start)) / duration;
+            return (totalBalance * (block.timestamp - start)) / vestingDuration;
         }
     }
 
-    /**
-     * @dev Permite revocar el vesting, si es que se ha definido como revocable.
-     */
     function revoke() public {
         require(revocable, "Vesting is not revocable");
+        require(msg.sender == owner, "Only owner can revoke");
         require(!revoked, "Vesting already revoked");
-        // Aquí se debería agregar control de acceso (por ejemplo, solo el owner puede revocar).
         revoked = true;
         emit VestingRevoked();
     }

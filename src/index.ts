@@ -21,7 +21,7 @@ async function main(): Promise<void> {
         // 4. Escribir los archivos de salida en la carpeta del cliente.
         // Se usa "clientName" o se toma el tokenName si no se especifica.
         const clientName: string = inputs.clientName || inputs.tokenName;
-        writeOutputFiles(clientName, generatedFiles);
+        writeOutputFiles(clientName, generatedFiles, inputs);
     
         // 5. Generar y mostrar el hash del contrato para comprobación de integridad.
         const contractHash = generateHash(generatedFiles.contract);

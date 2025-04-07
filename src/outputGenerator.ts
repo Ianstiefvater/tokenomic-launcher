@@ -62,7 +62,7 @@ function generateReadme(inputs: any): string {
   // Vesting section
   if (inputs.enableVesting) {
     readme += `## Vesting\n`;
-    readme += `Beneficiary: ${inputs.beneficiary}\n`;
+    readme += `Beneficiary: ${inputs.vestingBeneficiary}\n`;
     readme += `Cliff Duration: ${inputs.cliffDuration} (in months, converted to seconds in the contract)\n`;
     readme += `Total Vesting Duration: ${inputs.vestingDuration} (in months/years, converted to seconds in the contract)\n`;
     readme += `Initial Release Percentage: ${inputs.pctInitialVesting}%\n\n`;
@@ -107,7 +107,7 @@ function generateReadme(inputs: any): string {
  * @param clientName The name of the client folder.
  * @param generatedFiles An object containing the contract code and optionally other files.
  */
-export function writeOutputFiles(clientName: string, generatedFiles: { contract: string; }): void {
+export function writeOutputFiles(clientName: string, generatedFiles: { contract: string }, inputs: any): void {
   const clientDir = path.join(OUTPUT_DIR, clientName);
   // Ensure the client directory exists.
   fs.ensureDirSync(clientDir);
@@ -115,11 +115,8 @@ export function writeOutputFiles(clientName: string, generatedFiles: { contract:
   // Write the contract code to contract.sol
   fs.writeFileSync(path.join(clientDir, 'contract.sol'), generatedFiles.contract, 'utf-8');
 
-  // Generate the README content based on inputs
-  // Assuming that we want to use the same inputs object that was used for rendering.
-  // Here we simulate this by requiring that generatedFiles include the inputs, or you can pass the inputs separately.
-  // For this example, let's assume we passed inputs in generatedFiles as well.
-  const readmeContent = generateReadme((generatedFiles as any).inputs);
+  // Generate the README content based on the original inputs
+  const readmeContent = generateReadme(inputs);
   fs.writeFileSync(path.join(clientDir, 'README.md'), readmeContent, 'utf-8');
 
   console.log(`Files have been generated in ${clientDir}`);

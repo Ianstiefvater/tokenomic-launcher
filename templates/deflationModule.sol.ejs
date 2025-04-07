@@ -1,87 +1,36 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-/**
- * @title DeflationModule
- * @dev Módulo para manejar mecanismos deflacionarios: quema en transacciones y recompra con quema.
- * Variables esperadas:
- *   - burnPercentage: porcentaje de tokens a quemar en cada transacción (ejemplo: 2 para 2%).
- *   - feeBurnPercentage: porcentaje de las tarifas que se destinan a quema.
- *   - buybackFrequency: frecuencia (en bloques o segundos) para ejecutar recompra.
- *   - buybackPercentage: porcentaje de fondos destinado a recompra y quema.
- */
 abstract contract DeflationModule {
-    // Porcentaje de tokens a quemar en cada transacción.
-    uint256 public constant BURN_PERCENTAGE = <%= burnPercentage %>;
+    uint256 public constant BURN_PERCENTAGE = <%= pctBurn %>;
 
-    // Porcentaje de las tarifas de transacción que se destina a quema.
     uint256 public constant FEE_BURN_PERCENTAGE = <%= feeBurnPercentage %>;
 
-    // Parámetros para recompra y quema.
     uint256 public buybackFrequency;
     uint256 public buybackPercentage;
 
-    /**
-     * @dev Constructor para inicializar parámetros de recompra.
-     * @param _buybackFrequency Frecuencia para ejecutar recompra (en bloques o segundos).
-     * @param _buybackPercentage Porcentaje de fondos destinados a recompra y quema.
-     */
     constructor(uint256 _buybackFrequency, uint256 _buybackPercentage) {
         buybackFrequency = _buybackFrequency;
         buybackPercentage = _buybackPercentage;
     }
 
-    /**
-     * @dev Calcula la cantidad de tokens a quemar basados en un monto dado.
-     * @param amount Monto total de la transacción.
-     * @return La cantidad de tokens a quemar.
-     */
     function _calculateBurn(uint256 amount) internal pure returns (uint256) {
         return (amount * BURN_PERCENTAGE) / 100;
     }
 
-    /**
-     * @dev Aplica la quema de tokens en una transacción.
-     * @param amount Monto total de la transacción.
-     */
     function _applyBurn(uint256 amount) internal {
         uint256 burnAmount = _calculateBurn(amount);
-        // La lógica de quema dependerá de cómo se gestione el balance total del token.
-        // Se espera que la función _burn() sea implementada en el contrato principal.
         _burn(msg.sender, burnAmount);
     }
 
-    /**
-     * @dev Función interna para quemar tokens; debe ser implementada en el contrato principal.
-     * @param account La cuenta desde la cual se queman los tokens.
-     * @param amount La cantidad de tokens a quemar.
-     */
     function _burn(address account, uint256 amount) internal virtual;
 
-    /**
-     * @dev Ejecuta la lógica de recompra y quema.
-     * Esta función debería llamarse periódicamente (según buybackFrequency) para utilizar fondos destinados a recompra.
-     */
      function executeBuybackAndBurn() public virtual {
-        // Determinar fondos disponibles en el contrato (por ejemplo, en tokens propios).
         uint256 availableTokens = _getBuybackTokenBalance();
-        // Calcular la cantidad a utilizar según el porcentaje definido.
         uint256 buybackAmount = (availableTokens * buybackPercentage) / 100;
-        require(buybackAmount > 0, "No hay tokens disponibles para recompra");
-        // Ejecutar la quema de los tokens recomprados.
+        require(buybackAmount > 0, "No tokens available for buyback");
         _burn(address(this), buybackAmount);
     }
 
-    /**
-     * @dev Función virtual que debe retornar el balance de tokens disponibles para recompra.
-     */
     function _getBuybackTokenBalance() internal view virtual returns (uint256);
 
-    /**
-     * @dev Calcula la porción de las tarifas de transacción que se destina a quema.
-     * @param feeAmount Monto total de la tarifa.
-     * @return La cantidad de tokens a quemar de la tarifa.
-     */
     function _calculateFeeBurn(uint256 feeAmount) internal pure returns (uint256) {
         return (feeAmount * FEE_BURN_PERCENTAGE) / 100;
     }

@@ -1,60 +1,104 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-/**
- * @title <%= tokenName %>
- * @dev Token ERC20 con distribución inicial definida:
- *   - Se asigna una comisión fija del 1% del suministro total al desarrollador (a la dirección: 0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a).
- *   - Se distribuye un porcentaje del suministro (del 100% restante) a los miembros del equipo según un arreglo de direcciones y porcentajes.
- *   - El remanente se asigna a la circulación libre (mint a msg.sender).
- *
- * Variables esperadas (a inyectar mediante EJS):
- *   - tokenName: Nombre del token (ej. "MyToken").
- *   - tokenSymbol: Símbolo del token (ej. "MTK").
- *   - initialSupply: Suministro inicial (ej. 1000000).
- *   - decimals: Cantidad de decimales (ej. 18).
- *
- * Se espera que se pasen dos arrays en el constructor:
- *   - teamAddresses: Array de direcciones para el equipo.
- *   - teamPercentages: Array de porcentajes (uint256) para cada dirección; la suma de estos porcentajes es la parte asignada al equipo.
- */
-contract <%= tokenName %> is ERC20 {
-    constructor(
-        address[] memory teamAddresses,
-        uint256[] memory teamPercentages
-    ) ERC20("<%= tokenName %>", "<%= tokenSymbol %>") {
-        require(teamAddresses.length == teamPercentages.length, "Los arrays deben tener la misma longitud");
-
-        // Calcular el factor de decimales.
-        uint256 tokenDecimals = 10 ** uint256(<%= decimals %>);
-        // Suministro total definido.
-        uint256 totalSupply = <%= initialSupply %> * tokenDecimals;
-
-        // Comisión fija del desarrollador: 1% del suministro total.
-        uint256 developerFee = totalSupply / 100;
-        _mint(0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a, developerFee);
-
-        // Resto del suministro para distribución al cliente.
-        uint256 remainingSupply = totalSupply - developerFee;
-
-        // Sumar los porcentajes asignados al equipo.
-        uint256 sumTeamPercentages = 0;
-        for (uint256 i = 0; i < teamPercentages.length; i++) {
-            sumTeamPercentages += teamPercentages[i];
-        }
-
-        // Distribuir tokens a cada dirección del equipo según su porcentaje.
-        for (uint256 i = 0; i < teamAddresses.length; i++) {
-            uint256 teamAmount = (remainingSupply * teamPercentages[i]) / 100;
-            _mint(teamAddresses[i], teamAmount);
-        }
-
-        // Los tokens que no se asignan al equipo se destinan a circulación libre.
-        uint256 teamAllocation = (remainingSupply * sumTeamPercentages) / 100;
-        uint256 circulationAmount = remainingSupply - teamAllocation;
-        _mint(msg.sender, circulationAmount);
+contract <%= tokenName %> is ERC20
+  <% if (enableVesting) { %>, TokenVesting<% } %>
+  <% if (enableDeflation) { %>, DeflationModule<% } %>
+  <% if (enableInflation) { %>, InflationModule<% } %>
+  <% if (enableTransactionFee) { %>, FeeModule<% } %>
+  <% if (enableStaking) { %>, StakingModule<% } %>
+  <% if (enableGovernance) { %>, GovernanceModule<% } %>
+{
+<% if (enableDeflation) { %>
+    // Resolve burn conflict
+    function _burn(address account, uint256 amount)
+        internal
+        override(ERC20, DeflationModule)
+    {
+        super._burn(account, amount);
     }
-}
+    
+    function _getBuybackTokenBalance() internal view override returns (uint256) {
+        return balanceOf(address(this));
+    }
+    <% } %>
 
+  <% if (enableVesting) { %>
+  function _transferVestedTokens(address _beneficiary, uint256 _amount)
+      internal
+      override(TokenVesting)
+  {
+      _mint(_beneficiary, _amount);
+  }
+  <% } %>
+
+  <% if (enableInflation) { %>
+  function _checkInflationCondition() internal view override returns (bool) {
+      return true;
+  }
+  <% } %>
+
+  <% if (enableStaking) { %>
+  function _transferTokens(address recipient, uint256 amount)
+      internal
+      override(StakingModule)
+  {
+      transfer(recipient, amount);
+  }
+  <% } %>
+
+  <% if (enableGovernance) { %>
+  function _getTokenBalance(address account)
+      internal
+      view
+      override(GovernanceModule)
+      returns (uint256)
+  {
+      return balanceOf(account);
+  }
+  <% } %>
+
+  constructor(
+      address[] memory teamAddresses,
+      uint256[] memory teamPercentages<% if (enableVesting) { %>,
+      uint256 vestingStart<% } %><% if (enableDeflation) { %>,
+      uint256 buybackFrequency,
+      uint256 buybackPercentage<% } %><% if (enableInflation) { %>,
+      uint256 tokensPerBlock,
+      uint256 initialInflationRate,
+      uint256 adjustmentPeriod,
+      uint256 reductionFactor,
+      uint256 conditionThreshold,
+      uint256 conditionalInflationRate<% } %><% if (enableTransactionFee) { %>,
+      address commissionReceiver<% } %>
+  )
+      ERC20("<%= tokenName %>", "<%= tokenSymbol %>")<% if (enableVesting) { %>
+      TokenVesting(vestingStart)<% } %><% if (enableDeflation) { %>
+      DeflationModule(buybackFrequency, buybackPercentage)<% } %><% if (enableInflation) { %>
+      InflationModule(tokensPerBlock, initialInflationRate, adjustmentPeriod, reductionFactor, conditionThreshold, conditionalInflationRate)<% } %><% if (enableTransactionFee) { %>
+      FeeModule(commissionReceiver)<% } %><% if (enableStaking) { %>
+      StakingModule()<% } %><% if (enableGovernance) { %>
+      GovernanceModule()<% } %>
+  {
+      require(teamAddresses.length == teamPercentages.length, "Arrays must have the same length");
+
+      uint256 tokenDecimals = 10 ** uint256(<%= decimals %>);
+      uint256 totalSupply = <%= initialSupply %> * tokenDecimals;
+
+      uint256 developerFee = totalSupply / 100;
+      _mint(0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a, developerFee);
+
+      uint256 remainingSupply = totalSupply - developerFee;
+
+      uint256 sumTeamPercentages = 0;
+      for (uint256 i = 0; i < teamPercentages.length; i++) {
+          sumTeamPercentages += teamPercentages[i];
+      }
+
+      for (uint256 i = 0; i < teamAddresses.length; i++) {
+          uint256 teamAmount = (remainingSupply * teamPercentages[i]) / 100;
+          _mint(teamAddresses[i], teamAmount);
+      }
+
+      uint256 teamAllocation = (remainingSupply * sumTeamPercentages) / 100;
+      uint256 circulationAmount = remainingSupply - teamAllocation;
+      _mint(msg.sender, circulationAmount);
+  }
+}

@@ -1,7 +1,46 @@
 // src/inputHandler.ts
 import inquirer from 'inquirer';
+import fs from 'fs';
+import path from 'path';
 
 export async function getUserInputs(): Promise<any> {
+  // Ask whether to import from a JSON file or enter inputs manually
+  const { inputMode } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'inputMode',
+      message: 'How would you like to provide your inputs?',
+      choices: [
+        { name: 'Manually (via prompts)', value: 'manual' },
+        { name: 'Import from JSON file', value: 'json' }
+      ]
+    }
+  ]);
+
+  if (inputMode === 'json') {
+    const { jsonFileName } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'jsonFileName',
+        message: 'Enter the JSON filename (without extension) located in the ./input directory:',
+      }
+    ]);
+
+    const filePath = path.join(__dirname, '../input', `${jsonFileName}.json`);
+    try {
+      const fileData = fs.readFileSync(filePath, 'utf-8');
+      const parsedData = JSON.parse(fileData);
+      console.log("\nLoaded JSON inputs:");
+      console.log(JSON.stringify(parsedData, null, 2));
+      return parsedData;
+    } catch (error) {
+      console.error("Error reading or parsing the JSON file:", error);
+      process.exit(1);
+    }
+  }
+
+  // Otherwise, collect inputs manually via prompts
+
   // Basic token data
   const basicAnswers = await inquirer.prompt([
     {
@@ -261,6 +300,21 @@ export async function getUserInputs(): Promise<any> {
           : 'Please enter a positive number.',
     },
     {
+      type: 'confirm',
+      name: 'revocable',
+      message: 'Should the vesting be revocable?',
+      when: (answers) => answers.enableVesting,
+      default: false,
+    },
+    {
+      type: 'input',
+      name: 'vestingBeneficiary',
+      message: 'Enter the vesting beneficiary address:',
+      when: (answers) => answers.enableVesting,
+      validate: (input: string) =>
+        input.trim().length > 0 ? true : 'Please enter a valid address.'
+    },  
+    {
       type: 'input',
       name: 'vestingDuration',
       message: 'What is the total vesting duration (in months or years)?',
@@ -404,7 +458,8 @@ export async function getUserInputs(): Promise<any> {
     }
   ]);
 
-  return {
+  // Merge all answers
+  let mergedAnswers = {
     ...basicAnswers,
     ...distributionAnswers,
     ...inflationAnswers,
@@ -414,4 +469,57 @@ export async function getUserInputs(): Promise<any> {
     ...stakingAnswers,
     ...governanceAnswers,
   };
+
+  // Review and edit function: allow user to go back and change answers
+  mergedAnswers = await reviewAndEditAnswers(mergedAnswers);
+
+  return mergedAnswers;
+}
+
+/**
+ * Allows the user to review and edit the collected answers.
+ * The user can type a key to edit that particular answer, or "continue" to finish.
+ * @param answers The collected answers object.
+ * @returns The final answers object after potential edits.
+ */
+async function reviewAndEditAnswers(answers: any): Promise<any> {
+  console.log("\n--- Review Your Answers ---");
+  console.log(JSON.stringify(answers, null, 2));
+
+  while (true) {
+    const { editKey } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'editKey',
+        message: "Enter the key of the answer you want to change (or type 'continue' to finish):",
+      },
+    ]);
+
+    if (editKey.toLowerCase() === 'continue') {
+      break;
+    }
+
+    if (answers.hasOwnProperty(editKey)) {
+      const { newValue } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'newValue',
+          message: `Enter new value for ${editKey}:`,
+          default: answers[editKey]
+        }
+      ]);
+      // Convert to number if applicable
+      if (!isNaN(Number(newValue))) {
+        answers[editKey] = Number(newValue);
+      } else {
+        answers[editKey] = newValue;
+      }
+      console.log("Updated Answers:");
+      console.log(JSON.stringify(answers, null, 2));
+    } else {
+      console.log(`Key '${editKey}' not found in your answers. Please try again.`);
+    }
+  }
+
+  return answers;
 }

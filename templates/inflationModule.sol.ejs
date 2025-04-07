@@ -1,44 +1,15 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-/**
- * @title InflationModule
- * @dev Módulo para manejar la inflación del token.
- * Variables esperadas:
- *   - inflationType: "Fixed", "Variable" o "Conditional" (se inyecta en el enum).
- *   - tokensPerBlock: cantidad de tokens emitidos por bloque (para inflación fija).
- *   - initialInflationRate: tasa inicial de inflación en % (para inflación variable).
- *   - adjustmentPeriod: periodo de ajuste (en bloques o unidad definida, para inflación variable).
- *   - reductionFactor: factor de reducción en % por periodo (para inflación variable).
- *   - conditionThreshold: umbral para activar inflación condicional.
- *   - conditionalInflationRate: tasa de inflación en % cuando se cumple la condición.
- */
 abstract contract InflationModule {
     enum InflationType { None, Fixed, Variable, Conditional }
-    // Inyecta el tipo de inflación deseado; por ejemplo: InflationType.Fixed.
+
     InflationType public inflationType = InflationType.<%= inflationType %>;
 
-    // Variables para inflación fija.
     uint256 public tokensPerBlock;
-
-    // Variables para inflación variable.
     uint256 public initialInflationRate;
     uint256 public adjustmentPeriod;
     uint256 public reductionFactor;
-
-    // Variables para inflación condicional.
     uint256 public conditionThreshold;
     uint256 public conditionalInflationRate;
 
-    /**
-     * @dev Constructor para inicializar los parámetros de inflación.
-     * @param _tokensPerBlock Cantidad de tokens por bloque (para inflación fija).
-     * @param _initialInflationRate Tasa inicial de inflación en % (para inflación variable).
-     * @param _adjustmentPeriod Periodo de ajuste (para inflación variable).
-     * @param _reductionFactor Factor de reducción en % por periodo (para inflación variable).
-     * @param _conditionThreshold Umbral para activar inflación condicional.
-     * @param _conditionalInflationRate Tasa de inflación condicional en %.
-     */
     constructor(
         uint256 _tokensPerBlock,
         uint256 _initialInflationRate,
@@ -55,16 +26,10 @@ abstract contract InflationModule {
         conditionalInflationRate = _conditionalInflationRate;
     }
 
-    /**
-     * @dev Calcula la cantidad de tokens a emitir basado en el tipo de inflación y el bloque actual.
-     * @param currentBlock Número actual del bloque.
-     * @return Cantidad de tokens a emitir.
-     */
     function _calculateInflation(uint256 currentBlock) internal view returns (uint256) {
         if (inflationType == InflationType.Fixed) {
             return tokensPerBlock;
         } else if (inflationType == InflationType.Variable) {
-            // Calcular cuántos periodos han transcurrido.
             uint256 periods = currentBlock / adjustmentPeriod;
             uint256 currentRate = initialInflationRate;
             if (periods > 0) {
@@ -75,21 +40,19 @@ abstract contract InflationModule {
                     currentRate = initialInflationRate - reduction;
                 }
             }
-            // Se define una base de emisión (esto puede ajustarse a la lógica del token).
-            uint256 baseSupply = 1e18; // Ejemplo: base de 1 token (en wei).
+            uint256 baseSupply = 1e18;
             return (baseSupply * currentRate) / 100;
         } else if (inflationType == InflationType.Conditional) {
             if (_checkInflationCondition()) {
-                uint256 baseSupply = 1e18; // Base definida (esto puede ser parametrizable en el contrato derivado).
+                uint256 baseSupply = 1e18;
                 return (baseSupply * conditionalInflationRate) / 100;
+            } else {
+                return 0;
+            }
         } else {
-            return 0;
+           return 0;
         }
     }
-    /**
-    * @dev Función abstracta para evaluar la condición de inflación condicional.
-    * Debe retornar true si se cumple la condición (por ejemplo, si cierto umbral se ha alcanzado),
-    * y false en caso contrario.
-    */
+
     function _checkInflationCondition() internal view virtual returns (bool);
 }
