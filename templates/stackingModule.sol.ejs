@@ -28,6 +28,11 @@ abstract contract StakingModule {
     
     event Staked(address indexed staker, uint256 amount);
     event Unstaked(address indexed staker, uint256 amount, uint256 reward);
+    /**
+    * @dev Función virtual para transferir tokens al staker al finalizar el staking.
+    * Debe ser implementada en el contrato derivado (por ejemplo, utilizando la función _transfer de ERC20).
+    */
+    function _transferTokens(address recipient, uint256 amount) internal virtual;
 
     /**
      * @dev Permite a un usuario iniciar su staking.
@@ -56,7 +61,7 @@ abstract contract StakingModule {
         userStake.amount = 0;
         userStake.startTime = 0;
         emit Unstaked(msg.sender, totalAmount, reward);
-        // Se asume que la transferencia de tokens se implementa en el contrato principal.
+        _transferTokens(msg.sender, totalAmount);
     }
 
     /**

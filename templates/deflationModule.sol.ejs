@@ -62,11 +62,20 @@ abstract contract DeflationModule {
      * @dev Ejecuta la lógica de recompra y quema.
      * Esta función debería llamarse periódicamente (según buybackFrequency) para utilizar fondos destinados a recompra.
      */
-    function executeBuybackAndBurn() public virtual {
-        // Implementación: se debe calcular el monto destinado a recompra,
-        // utilizarlo para adquirir tokens (por ejemplo, mediante integración con un DEX)
-        // y luego quemarlos llamando a _burn().
+     function executeBuybackAndBurn() public virtual {
+        // Determinar fondos disponibles en el contrato (por ejemplo, en tokens propios).
+        uint256 availableTokens = _getBuybackTokenBalance();
+        // Calcular la cantidad a utilizar según el porcentaje definido.
+        uint256 buybackAmount = (availableTokens * buybackPercentage) / 100;
+        require(buybackAmount > 0, "No hay tokens disponibles para recompra");
+        // Ejecutar la quema de los tokens recomprados.
+        _burn(address(this), buybackAmount);
     }
+
+    /**
+     * @dev Función virtual que debe retornar el balance de tokens disponibles para recompra.
+     */
+    function _getBuybackTokenBalance() internal view virtual returns (uint256);
 
     /**
      * @dev Calcula la porción de las tarifas de transacción que se destina a quema.

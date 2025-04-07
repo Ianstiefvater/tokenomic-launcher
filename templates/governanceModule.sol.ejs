@@ -40,8 +40,9 @@ abstract contract GovernanceModule {
      * @param description Descripción de la propuesta.
      * @param duration Duración de la votación en segundos.
      */
+    function _getTokenBalance(address account) internal view virtual returns (uint256);
     function createProposal(string memory description, uint256 duration) public virtual {
-        // Se debe validar que el proponente cumple con el umbral de tokens.
+        require(_getTokenBalance(msg.sender) >= proposalThreshold, "You do not have enough tokens to propose");
         proposalCount++;
         proposals[proposalCount] = Proposal({
             id: proposalCount,

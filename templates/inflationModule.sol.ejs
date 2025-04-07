@@ -79,11 +79,17 @@ abstract contract InflationModule {
             uint256 baseSupply = 1e18; // Ejemplo: base de 1 token (en wei).
             return (baseSupply * currentRate) / 100;
         } else if (inflationType == InflationType.Conditional) {
-            // Lógica condicional: se asume que la condición se evalúa externamente.
-            uint256 baseSupply = 1e18; // Ejemplo: base de 1 token.
-            return (baseSupply * conditionalInflationRate) / 100;
+            if (_checkInflationCondition()) {
+                uint256 baseSupply = 1e18; // Base definida (esto puede ser parametrizable en el contrato derivado).
+                return (baseSupply * conditionalInflationRate) / 100;
         } else {
             return 0;
         }
     }
+    /**
+    * @dev Función abstracta para evaluar la condición de inflación condicional.
+    * Debe retornar true si se cumple la condición (por ejemplo, si cierto umbral se ha alcanzado),
+    * y false en caso contrario.
+    */
+    function _checkInflationCondition() internal view virtual returns (bool);
 }
