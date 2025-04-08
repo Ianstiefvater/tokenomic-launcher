@@ -20,7 +20,7 @@ function generateReadme(inputs: any): string {
     readme += `**Team Distribution:**\n`;
     // Assuming teamAddresses and teamPercentages are arrays of equal length.
     for (let i = 0; i < inputs.teamAddresses.length; i++) {
-      readme += `- \`${inputs.teamAddresses[i]}\`: ${inputs.teamPercentages[i]}%\n`;
+      readme += `- \`${inputs.teamAddresses[i]}\`: ${inputs.teamPercentages[i] / 10}%\n`;
     }
     readme += `\nThe remaining tokens are allocated to free circulation (minted to the deployer's address).\n\n`;
   } else {

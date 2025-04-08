@@ -17,16 +17,17 @@ abstract contract DeflationModule {
 
     function _applyBurn(uint256 amount) internal {
         uint256 burnAmount = _calculateBurn(amount);
-        _burn(msg.sender, burnAmount);
+        _deflationBurn(msg.sender, burnAmount);
     }
 
-    function _burn(address account, uint256 amount) internal virtual;
+    function _deflationBurn(address account, uint256 amount) internal virtual;
 
      function executeBuybackAndBurn() public virtual {
         uint256 availableTokens = _getBuybackTokenBalance();
         uint256 buybackAmount = (availableTokens * buybackPercentage) / 100;
-        require(buybackAmount > 0, "No tokens available for buyback");
-        _burn(address(this), buybackAmount);
+        if (buybackAmount > 0) {
+            _deflationBurn(address(this), buybackAmount);
+        }
     }
 
     function _getBuybackTokenBalance() internal view virtual returns (uint256);

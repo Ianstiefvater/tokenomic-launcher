@@ -8,10 +8,7 @@ contract <%= tokenName %> is ERC20
 {
 <% if (enableDeflation) { %>
     // Resolve burn conflict
-    function _burn(address account, uint256 amount)
-        internal
-        override(ERC20, DeflationModule)
-    {
+    function _deflationBurn(address account, uint256 amount) internal override {
         super._burn(account, amount);
     }
     
@@ -30,7 +27,7 @@ contract <%= tokenName %> is ERC20
   <% } %>
 
   <% if (enableInflation) { %>
-  function _checkInflationCondition() internal view override returns (bool) {
+  function _checkInflationCondition() internal pure override returns (bool) {
       return true;
   }
   <% } %>
@@ -67,7 +64,15 @@ contract <%= tokenName %> is ERC20
       uint256 reductionFactor,
       uint256 conditionThreshold,
       uint256 conditionalInflationRate<% } %><% if (enableTransactionFee) { %>,
-      address commissionReceiver<% } %>
+      address commissionReceiver<% } %><% if (enableStaking) { %>,
+      uint256 stakingRewardRate,
+      uint256 minStakingPeriod<% if (enableYieldFarmingBonus) { %>,
+      uint256 yieldFarmingBonusRate<% } %>
+  <% } %><% if (enableGovernance) { %>,
+      uint256 proposalThreshold,
+      uint256 quorum,
+      bool weightedByStaking
+  <% } %>
   )
       ERC20("<%= tokenName %>", "<%= tokenSymbol %>")<% if (enableVesting) { %>
       TokenVesting(vestingStart)<% } %><% if (enableDeflation) { %>
@@ -85,20 +90,14 @@ contract <%= tokenName %> is ERC20
       uint256 developerFee = totalSupply / 100;
       _mint(0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a, developerFee);
 
-      uint256 remainingSupply = totalSupply - developerFee;
-
-      uint256 sumTeamPercentages = 0;
-      for (uint256 i = 0; i < teamPercentages.length; i++) {
-          sumTeamPercentages += teamPercentages[i];
-      }
-
+      uint256 teamAllocation = 0;
       for (uint256 i = 0; i < teamAddresses.length; i++) {
-          uint256 teamAmount = (remainingSupply * teamPercentages[i]) / 100;
+          uint256 teamAmount = (totalSupply * teamPercentages[i]) / 1000;
+          teamAllocation += teamAmount;
           _mint(teamAddresses[i], teamAmount);
       }
-
-      uint256 teamAllocation = (remainingSupply * sumTeamPercentages) / 100;
-      uint256 circulationAmount = remainingSupply - teamAllocation;
+      
+      uint256 circulationAmount = totalSupply - developerFee - teamAllocation;
       _mint(msg.sender, circulationAmount);
   }
 }
