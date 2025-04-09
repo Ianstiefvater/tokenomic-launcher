@@ -51,6 +51,21 @@ contract <%= tokenName %> is ERC20
       return balanceOf(account);
   }
   <% } %>
+  <% if (enableTransactionFee) { %>
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        _processFees(amount);
+        return super.transfer(to, amount);
+    }
+  
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        _processFees(amount);
+        return super.transferFrom(from, to, amount);
+    }
+  
+    receive() external payable {}
+  <% } %>
+  
+  
 
   constructor(
       address[] memory teamAddresses,

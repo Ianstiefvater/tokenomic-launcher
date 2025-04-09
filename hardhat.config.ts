@@ -21,7 +21,14 @@ const config: HardhatUserConfig = {
     artifacts: './artifacts',
   },
   mocha: {
-    reporter: "json"
+    reporter: "mochawesome",
+    reporterOptions: {
+      reportDir: "mochawesome-report",
+      reportFilename: "mocha-report",
+      quiet: true,
+      html: true,
+      json: true
+    }
   }
 };
 

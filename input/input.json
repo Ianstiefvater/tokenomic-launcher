@@ -28,7 +28,7 @@
     "pctInitialVesting": "0",
     "vestingBeneficiary": "",
     "enableTransactionFee": true,
-    "pctTransactionFee": "2",
+    "pctTransactionFee": "200",
     "feeDistribution": {"Burning": 30, "Rewards": 40, "DevFund": 30},
     "enableStaking": false,
     "stakingRewardRate": "0",
