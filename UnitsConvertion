@@ -1,0 +1,228 @@
+====================================================================
+
+Mi direccion de Fee es para cCommissionRedceiver
+
+1. tokenName
+   - Tipo: string
+   - Descripción: Nombre del token (p.ej. "TokenCompleto").
+   - Unidad: N/A
+
+2. tokenSymbol
+   - Tipo: string
+   - Descripción: Símbolo del token (p.ej. "TCM").
+   - Unidad: N/A
+
+3. decimals
+   - Tipo: número (string)
+   - Descripción: Cantidad de decimales que maneja el token.
+   - Rango recomendado: 0–18.
+   - Conversión interna: el suministro y valores porcentuales se multiplican por 10^decimals.
+
+4. initialSupply
+   - Tipo: número (string)
+   - Descripción: Suministro inicial en **tokens enteros**.
+   - Rango: > 0.
+   - Conversión interna: totalSupply = initialSupply × 10^decimals (unidades mínimas).
+
+5. defineDistribution
+   - Tipo: boolean
+   - Descripción: Activa la distribución de tokens al equipo.
+
+6. teamPercentages
+   - Tipo: array de números
+   - Descripción: Porcentajes para cada dirección de equipo.
+   - Unidad: unidades de 0.1% (1 = 0.1%).
+   - Conversión interna: teamAmount = totalSupply × pct / 1000 ⇒  pct/1000 = porcentaje real.
+   - Rango: 0–1000 (0%–100%).  
+     • **Nota**: el validador actual exige suma ≤ 100 (=> 10%), aunque idealmente debería ser ≤ 1000 (100%).
+
+7. teamAddresses
+   - Tipo: array de direcciones
+   - Descripción: Direcciones que reciben la asignación de equipo.
+
+8. enableInflation
+   - Tipo: boolean
+   - Descripción: Activa el módulo de inflación.
+
+9. inflationType
+   - Tipo: string
+   - Opciones: "Fixed", "Variable", "Conditional".
+
+10. initialInflationRate
+    - Tipo: número (string)
+    - Descripción: Tasa de inflación inicial en **porcentaje**.
+    - Unidad: 1 = 1%.
+    - Conversión interna: (baseSupply × rate) / 100.
+    - Rango: 0–100.
+
+11. adjustmentPeriod
+    - Tipo: número (string)
+    - Descripción: Número de bloques entre ajustes de inflación.
+    - Unidad: bloques.
+    - Rango: > 0.
+
+12. reductionFactor
+    - Tipo: número (string)
+    - Descripción: Reducción en puntos porcentuales por periodo.
+    - Unidad: 1 = 1%.
+    - Rango: 0–100.
+
+13. conditionThreshold
+    - Tipo: número (string)
+    - Descripción: Umbral de condición para inflación condicional.
+    - Unidad: tokens en **unidades mínimas** (×10^decimals).
+    - Rango: ≥ 0.
+
+14. conditionalInflationRate
+    - Tipo: número (string)
+    - Descripción: Tasa de inflación si se cumple la condición.
+    - Unidad: 1 = 1%.
+    - Conversión interna: (baseSupply × rate) / 100.
+    - Rango: 0–100.
+
+15. enableDeflation
+    - Tipo: boolean
+    - Descripción: Activa el módulo de deflación.
+
+16. enableBurn
+    - Tipo: boolean
+    - Descripción: Activa la quema de tokens en cada transferencia.
+
+17. pctBurn
+    - Tipo: número (string)
+    - Descripción: Porcentaje a quemar por transferencia.
+    - Unidad: 1 = 1%.
+    - Conversión interna: (amount × pctBurn) / 100.
+    - Rango: 0–100.
+
+18. enableBuyback
+    - Tipo: boolean
+    - Descripción: Activa recompra de tokens.
+
+19. buybackFrequency
+    - Tipo: número (string)
+    - Descripción: Frecuencia de recompra en bloques.
+    - Unidad: bloques.
+    - Rango: > 0.
+
+20. pctBuyback
+    - Tipo: número (string)
+    - Descripción: Porcentaje de saldo del contrato a recomprar.
+    - Unidad: 1 = 1%.
+    - Conversión interna: (balance × pctBuyback) / 100.
+    - Rango: 0–100.
+
+21. enableFeeBurn
+    - Tipo: boolean
+    - Descripción: Activa quema de parte de las comisiones.
+
+22. feeBurnPercentage
+    - Tipo: número (string)
+    - Descripción: Porcentaje de la comisión que se quema.
+    - Unidad: 1 = 1%.
+    - Conversión interna: (feeAmount × feeBurnPercentage) / 100.
+    - Rango: 0–100.
+
+23. enableVesting
+    - Tipo: boolean
+    - Descripción: Activa módulo de vesting.
+    
+21. vestingStart
+    - Tipo: número (string)
+    - Descripción: Timestamp Unix (segundos) de inicio del vesting.
+    - Unidad: segundos desde epoch.
+    - Rango: ≥ 0. Recomendado: block.timestamp del despliegue o utiliza el timestamp actual del bloque de despliegue
+24. revocable
+    - Tipo: boolean
+    - Descripción: Permite revocar vesting.
+
+25. cliffDuration
+    - Tipo: número (string)
+    - Descripción: Duración de cliff en segundos.
+    - Rango: > 0.
+
+26. vestingDuration
+    - Tipo: número (string)
+    - Descripción: Duración total del vesting en segundos.
+    - Rango: > 0.
+
+27. pctInitialVesting
+    - Tipo: número (string)
+    - Descripción: Porcentaje inicial liberado al cliff.
+    - Unidad: 1 = 1%.
+    - Rango: 0–100.
+
+28. vestingBeneficiary
+    - Tipo: dirección
+    - Descripción: Dirección que recibe tokens vesting.
+
+29. enableTransactionFee
+    - Tipo: boolean
+    - Descripción: Activa módulo de comisiones en transferencias.
+
+30. pctTransactionFee
+    - Tipo: número (string)
+    - Descripción: Comisión en **puntos base**.
+    - Unidad: 1 = 0.01% (p.ej. 200 ⇒ 2%).
+    - Conversión interna: (amount × pctTransactionFee) / 10000.
+    - Rango: 0–10000 (0%–100%).
+
+31. feeDistribution
+    - Tipo: objeto { etiqueta: porcentaje }
+    - Descripción: Reparto interno de la comisión.
+    - Unidad: 1 = 1%.
+    - Requisitos: la suma de valores debe ser 100.
+
+32. enableStaking
+    - Tipo: boolean
+    - Descripción: Activa módulo de staking.
+
+33. stakingRewardRate
+    - Tipo: número (string)
+    - Descripción: Tasa de recompensa anual en **porcentaje**.
+    - Unidad: 1 = 1%.
+    - Conversión interna: reward = amount × rate × time / (365d × 100).
+    - Rango: 0–100.
+
+34. minStakingPeriod
+    - Tipo: número (string)
+    - Descripción: Período mínimo de staking en segundos.
+    - Rango: > 0.
+
+35. enableYieldFarmingBonus
+    - Tipo: boolean
+    - Descripción: Activa bono adicional de yield farming.
+
+36. yieldFarmingBonusRate
+    - Tipo: número (string)
+    - Descripción: Porcentaje de bono en **porcentaje**.
+    - Unidad: 1 = 1%.
+    - Rango: 0–100.
+
+37. enableGovernance
+    - Tipo: boolean
+    - Descripción: Activa módulo de gobernanza.
+
+38. proposalThreshold
+    - Tipo: número (string, BigInt)
+    - Descripción: Umbral de tokens para crear propuestas en **unidades mínimas**.
+    - Ejemplo: para 100 tokens ⇒ “100” × 10^decimals ⇒ “100000000000000000000”.
+    - Rango: 0–totalSupply (en unidades mínimas).
+
+39. quorum
+    - Tipo: número (string, BigInt)
+    - Descripción: Votos mínimos para quórum en **unidades mínimas**.
+    - Igual que proposalThreshold.
+    - Rango: 0–totalSupply (en unidades mínimas).
+
+40. weightedByStaking
+    - Tipo: boolean
+    - Descripción: Si los votos se ponderan según staking.
+
+--------------------------------------------------------------------------------
+Resumen de conversiones porcentuales:
+- `/100` ⇒ 1 unidad = 1%.
+- `/1000` ⇒ 1 unidad = 0.1%.
+- `/10000` ⇒ 1 unidad = 0.01% (puntos base).
+- Unidades mínimas (`10^decimals`) ⇒ input × 10^decimals.
+"""

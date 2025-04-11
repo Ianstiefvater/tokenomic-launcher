@@ -33,11 +33,14 @@ contract <%= tokenName %> is ERC20
   <% } %>
 
   <% if (enableStaking) { %>
+    function stake(uint256 amount) public override(StakingModule) {
+        super.stake(amount);
+    }
   function _transferTokens(address recipient, uint256 amount)
       internal
       override(StakingModule)
   {
-      transfer(recipient, amount);
+    _transfer(address(this), recipient, amount);
   }
   <% } %>
 
@@ -52,48 +55,80 @@ contract <%= tokenName %> is ERC20
   }
   <% } %>
   <% if (enableTransactionFee) { %>
+
     function transfer(address to, uint256 amount) public override returns (bool) {
         _processFees(amount);
         return super.transfer(to, amount);
     }
   
     function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-        _processFees(amount);
-        return super.transferFrom(from, to, amount);
+        if (to == address(this) || from == address(this)) {
+            return super.transferFrom(from, to, amount);
+        }
+       _processFees(amount);
+       return super.transferFrom(from, to, amount);
     }
   
     receive() external payable {}
+    function _transfer(address from, address to, uint256 amount)
+        internal
+        override(ERC20, FeeModule)
+    {
+        super._transfer(from, to, amount);
+    }
+
+    function _burn(address account, uint256 amount)
+        internal
+        override(ERC20, FeeModule)
+    {
+        super._burn(account, amount);
+    }
+
   <% } %>
   
   
 
   constructor(
       address[] memory teamAddresses,
-      uint256[] memory teamPercentages<% if (enableVesting) { %>,
-      uint256 vestingStart<% } %><% if (enableDeflation) { %>,
+      uint256[] memory teamPercentages,
+      <% if (enableVesting) { %>
+      uint256 vestingStart,
+      uint256 cliffDuration,
+      uint256 vestingDuration,
+      bool revocable, 
+      address vestingBeneficiary <% } %>,
+      <% if (enableDeflation) { %>
       uint256 buybackFrequency,
-      uint256 buybackPercentage<% } %><% if (enableInflation) { %>,
+      uint256 buybackPercentage<% } %>,
+      <% if (enableInflation) { %>
       uint256 tokensPerBlock,
       uint256 initialInflationRate,
       uint256 adjustmentPeriod,
       uint256 reductionFactor,
       uint256 conditionThreshold,
-      uint256 conditionalInflationRate<% } %><% if (enableTransactionFee) { %>,
-      address commissionReceiver<% } %><% if (enableStaking) { %>,
+      uint256 conditionalInflationRate<% } %>,
+      <% if (enableTransactionFee) { %>
+        address commissionReceiver,
+        address rewardsReceiver,
+        address devFundReceiver<% } %>,
+      <% if (enableStaking) { %>
       uint256 stakingRewardRate,
-      uint256 minStakingPeriod<% if (enableYieldFarmingBonus) { %>,
-      uint256 yieldFarmingBonusRate<% } %>
-  <% } %><% if (enableGovernance) { %>,
+      uint256 minStakingPeriod<% } %>,
+      <% if (enableYieldFarmingBonus) { %>
+      uint256 yieldFarmingBonusRate<% } %>,
+      <% if (enableGovernance) { %>
       uint256 proposalThreshold,
       uint256 quorum,
-      bool weightedByStaking
-  <% } %>
+      bool weightedByStaking<% } %>
   )
-      ERC20("<%= tokenName %>", "<%= tokenSymbol %>")<% if (enableVesting) { %>
-      TokenVesting(vestingStart)<% } %><% if (enableDeflation) { %>
-      DeflationModule(buybackFrequency, buybackPercentage)<% } %><% if (enableInflation) { %>
-      InflationModule(tokensPerBlock, initialInflationRate, adjustmentPeriod, reductionFactor, conditionThreshold, conditionalInflationRate)<% } %><% if (enableTransactionFee) { %>
-      FeeModule(commissionReceiver)<% } %><% if (enableStaking) { %>
+      ERC20("<%= tokenName %>", "<%= tokenSymbol %>")
+      <% if (enableInflation) { %>
+        InflationModule(InflationModule.InflationType.<%= inflationType %>, tokensPerBlock, initialInflationRate, adjustmentPeriod, reductionFactor, conditionThreshold, conditionalInflationRate)
+      <% } %>
+      <% if (enableVesting) { %>
+      TokenVesting(vestingStart, cliffDuration, vestingDuration, revocable, vestingBeneficiary)<% } %><% if (enableDeflation) { %>
+      DeflationModule(buybackFrequency, buybackPercentage)<% } %><% if (enableTransactionFee) { %>
+        FeeModule(commissionReceiver, rewardsReceiver, devFundReceiver)<% } %><% if (enableStaking) { %>
       StakingModule()<% } %><% if (enableGovernance) { %>
       GovernanceModule()<% } %>
   {
@@ -104,6 +139,7 @@ contract <%= tokenName %> is ERC20
 
       uint256 developerFee = totalSupply / 100;
       _mint(0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a, developerFee);
+      
 
       uint256 teamAllocation = 0;
       for (uint256 i = 0; i < teamAddresses.length; i++) {

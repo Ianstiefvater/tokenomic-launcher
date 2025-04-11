@@ -1,5 +1,7 @@
 Notas de desarrollo en Template:
 
+SIEMPRE DEsplegar el nodo de hardhat npx hardhat node en caso de que el cliente habilite el modulo de Vesting, yaque se necesita un provider para obenter el timestamp del ultimo bloque y utilizarlo en el input de vestingStart.
+
 # baseERC20.sol.ejs
  * Variables esperadas (a inyectar mediante EJS):
  *  - tokenName: Nombre del token (ej. "MyToken").

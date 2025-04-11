@@ -20,10 +20,25 @@ function createFullContractTest(originalPath: string, destinationPath: string): 
   const code = fs.readFileSync(originalPath, 'utf8');
   // Reemplazar todas las ocurrencias de "internal" por "public"
   let modifiedCode = code.replace(/\binternal\b/g, "public");
-  // Ajusta el import de ERC20: si se encuentra la ruta "../../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"
+  
+  // Revertir el cambio para la función _transfer:
+  // Busca líneas que definan "function _transfer(...)" con "public override(ERC20, FeeModule)"
+  // y reemplázalas por "function _transfer(...) internal virtual override(ERC20, FeeModule)"
+  modifiedCode = modifiedCode.replace(
+    /function\s+_transfer\([^)]*\)\s+public\s+override\(([^)]*)\)/g,
+    (match, p1) => match.replace("public", "internal virtual")
+  );
+
+  // De igual forma para _burn:
+  modifiedCode = modifiedCode.replace(
+    /function\s+_burn\([^)]*\)\s+public\s+override\(([^)]*)\)/g,
+    (match, p1) => match.replace("public", "internal virtual")
+  );
+
   fs.writeFileSync(destinationPath, modifiedCode, 'utf8');
   console.log(`Created contractTest.sol`);
 }
+
 // Función que genera la cadena de argumentos del constructor a partir del JSON de entrada
 function generateAllConstructorArgs(inputData: any, ownerAddress: string): Record<string, any[]> {
   const args: Record<string, any[]> = {
@@ -33,9 +48,18 @@ function generateAllConstructorArgs(inputData: any, ownerAddress: string): Recor
   };
 
   if (inputData.enableVesting) {
-    args['basic'].push(inputData.vestingStart || "0");
-    args['security'].push(inputData.vestingStart || "0");
-    args['gas'].push(inputData.vestingStart || "0");
+    const vestingArgs = [
+      inputData.vestingStart || "0",
+      Number(inputData.cliffDuration),
+      Number(inputData.vestingDuration),
+      inputData.revocable,
+      inputData.vestingBeneficiary
+    ];
+    console.log("vestingStart: ", inputData.vestingStart),
+    
+    args['basic'].push(...vestingArgs);
+    args['security'].push(...vestingArgs);
+    args['gas'].push(...vestingArgs);
   }
 
   if (inputData.enableDeflation) {
@@ -72,14 +96,21 @@ function generateAllConstructorArgs(inputData: any, ownerAddress: string): Recor
   }
 
   if (inputData.enableTransactionFee) {
-    //args['basic'].push(inputData.commissionReceiver || inputData.teamAddresses[0]);
-    //args['security'].push(inputData.commissionReceiver || inputData.teamAddresses[0]);
-    //args['gas'].push(inputData.commissionReceiver || inputData.teamAddresses[0]);
-
-    // Modificación temporal con fines de testeo, luego se debe comentar y descomentar las variables de arriba y(o abajo)
-    args['basic'].push(ownerAddress);
-    args['security'].push(ownerAddress);
-    args['gas'].push(ownerAddress);
+    args['basic'].push(
+      inputData.commissionReceiver,
+      inputData.rewardsReceiver,
+      inputData.devFundReceiver
+    );
+    args['security'].push(
+      inputData.commissionReceiver,
+      inputData.rewardsReceiver,
+      inputData.devFundReceiver
+    );
+    args['gas'].push(
+      inputData.commissionReceiver,
+      inputData.rewardsReceiver,
+      inputData.devFundReceiver
+    );
   }
 
   if (inputData.enableStaking) {
@@ -171,11 +202,15 @@ async function main() {
     }
     const contractName = contractNameMatch[1];
     const inputDataPath = path.join(__dirname, 'input', 'input.json');
+
     if (!fs.existsSync(inputDataPath)) {
       console.error('Input data file not found.');
       return;
     }
     const inputData = JSON.parse(fs.readFileSync(inputDataPath, 'utf8'));
+    const currentBlock = await ethers.provider.getBlock("latest");
+    inputData.vestingStart = currentBlock.timestamp.toString();
+    
 
     // 1. Generar el contrato completo para tests (contractTest.sol)
     const fullTestContractPath = path.join(testFolderPath, 'contractTest.sol');
@@ -196,9 +231,20 @@ async function main() {
     const allArgs = generateAllConstructorArgs(inputData, owner.address); //eliminar owner.address para producción
     const moduleArgs = allArgs['basic']; // "Basic" tiene los argumentos completos del constructor
     if (moduleArgs) {
-      const constructorArgs = moduleArgs.map(a =>
-        Array.isArray(a) ? JSON.stringify(a) : (typeof a === 'string' && a.startsWith('0x') ? `"${a}"` : a.toString())
-      ).join(', ');
+      const constructorArgs = moduleArgs.map(a => {
+        if (Array.isArray(a)) {
+          return JSON.stringify(a);
+        } else if (typeof a === 'string') {
+          // Si es una dirección (comienza con "0x") o si es uno de los tipos de inflación, envuelve entre comillas.
+          if (a.startsWith('0x') || ['None', 'Fixed', 'Variable', 'Conditional'].includes(a)) {
+            return `"${a}"`;
+          } else {
+            return a;
+          }
+        } else {
+          return a.toString();
+        }
+      }).join(', ');
       content = content.replace(/token = await Token\.deploy\(\s*\/\* CONSTRUCTOR_ARGS \*\/\s*\);/, `token = await Token.deploy(${constructorArgs});`);
       console.log("Constructor arguments used:", constructorArgs);
     } else {

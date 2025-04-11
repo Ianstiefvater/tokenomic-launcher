@@ -1,7 +1,7 @@
 abstract contract InflationModule {
     enum InflationType { None, Fixed, Variable, Conditional }
 
-    InflationType public inflationType = InflationType.<%= inflationType %>;
+    InflationType public inflationType;
 
     uint256 public tokensPerBlock;
     uint256 public initialInflationRate;
@@ -11,6 +11,7 @@ abstract contract InflationModule {
     uint256 public conditionalInflationRate;
 
     constructor(
+        InflationType _inflationType,
         uint256 _tokensPerBlock,
         uint256 _initialInflationRate,
         uint256 _adjustmentPeriod,
@@ -18,6 +19,7 @@ abstract contract InflationModule {
         uint256 _conditionThreshold,
         uint256 _conditionalInflationRate
     ) {
+        inflationType        = InflationType(_inflationType);
         tokensPerBlock = _tokensPerBlock;
         initialInflationRate = _initialInflationRate;
         adjustmentPeriod = _adjustmentPeriod;

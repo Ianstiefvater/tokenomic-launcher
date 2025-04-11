@@ -1,6 +1,10 @@
 // src/validators.ts
+import { ethers } from "ethers";
 
-export function validateInputs(inputs: any): void {
+const provider = new ethers.JsonRpcProvider("http://localhost:8545");
+
+
+export async function validateInputs(inputs: any): Promise<void> {
     // Print all collected inputs for review
     console.log("Collected Inputs:", inputs);
   
@@ -44,7 +48,7 @@ export function validateInputs(inputs: any): void {
         (sum: number, perc: number) => sum + perc,
         0
       );
-      if (sumTeamPercent > 100) {
+      if (sumTeamPercent > 1000) {
         throw new Error("The sum of team percentages should not exceed 100.");
       }
     }
@@ -114,6 +118,8 @@ export function validateInputs(inputs: any): void {
       const cliffDuration = Number(inputs.cliffDuration);
       const vestingDuration = Number(inputs.vestingDuration);
       const pctInitialVesting = Number(inputs.pctInitialVesting);
+      
+      // Validaciones existentes:
       if (isNaN(cliffDuration) || cliffDuration <= 0) {
         throw new Error("Cliff duration must be a positive number.");
       }
@@ -127,7 +133,25 @@ export function validateInputs(inputs: any): void {
       ) {
         throw new Error("Initial vesting percentage must be between 0 and 100.");
       }
+      
+      // Nueva validación para vestingStart:
+      let vestingStart = Number(inputs.vestingStart);
+      console.log("Valor original de vestingStart:", vestingStart);
+      const latestBlock = await provider.getBlock("latest");
+      if (!latestBlock) {
+        throw new Error("No se pudo obtener el bloque actual.");
+      }
+      const currentTimestamp = latestBlock.timestamp;
+      
+      console.log("Timestamp actual del nodo:", currentTimestamp);
+      if (isNaN(vestingStart) || vestingStart < currentTimestamp) {
+        vestingStart = currentTimestamp + 10000; // Suma un margen (1, por ejemplo)
+      }
+      // Actualizamos el input para que la plantilla reciba un valor válido.
+      inputs.vestingStart = vestingStart.toString();
+      console.log("Input final vestingStart:", inputs.vestingStart);
     }
+
   
     // --- Transaction Fee Configuration ---
     if (inputs.enableTransactionFee) {
@@ -135,9 +159,9 @@ export function validateInputs(inputs: any): void {
       if (
         isNaN(pctTransactionFee) ||
         pctTransactionFee < 0 ||
-        pctTransactionFee > 100
+        pctTransactionFee > 10000
       ) {
-        throw new Error("Transaction fee percentage must be between 0 and 100.");
+        throw new Error("Transaction fee percentage must be between 0 and 10000.");
       }
       if (!inputs.feeDistribution || typeof inputs.feeDistribution !== "object") {
         throw new Error("Fee distribution must be provided as an object.");
@@ -172,22 +196,36 @@ export function validateInputs(inputs: any): void {
   
     // --- Governance Configuration ---
     if (inputs.enableGovernance) {
-      const proposalThreshold = Number(inputs.proposalThreshold);
-      const quorum = Number(inputs.quorum);
-      if (
-        isNaN(proposalThreshold) ||
-        proposalThreshold < 0 ||
-        proposalThreshold > 100
-      ) {
-        throw new Error("Proposal threshold must be between 0 and 100.");
+      // proposalThreshold y quorum vienen como strings
+      let threshold: bigint;
+      let quorum: bigint;
+
+      try {
+        threshold = BigInt(inputs.proposalThreshold);
+      } catch {
+        throw new Error("Proposal threshold must be a valid integer string.");
       }
-      if (isNaN(quorum) || quorum < 0 || quorum > 100) {
-        throw new Error("Quorum must be between 0 and 100.");
+      if (threshold < BigInt(0)) {
+        throw new Error("Proposal threshold must be non‑negative.");
       }
+
+      try {
+        quorum = BigInt(inputs.quorum);
+      } catch {
+        throw new Error("Quorum must be a valid integer string.");
+      }
+      if (quorum < BigInt(0)) {
+        throw new Error("Quorum must be non‑negative.");
+      }
+
       if (typeof inputs.weightedByStaking !== "boolean") {
         throw new Error("Weighted by staking must be a boolean value.");
       }
+
     }
+
+
+
   
     console.log("All inputs validated successfully.");
   }

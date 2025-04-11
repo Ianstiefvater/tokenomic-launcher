@@ -14,12 +14,21 @@ abstract contract TokenVesting {
 
     function _transferVestedTokens(address beneficiary, uint256 amount) internal virtual;
 
-    constructor(uint256 _start) {
-        owner = msg.sender;
-        beneficiary = <%= vestingBeneficiary %>;
-        start = _start;
-        cliff = _start + <%= cliffDuration %>;
-        vestingDuration = <%= vestingDuration %>;
+    constructor(
+        uint256 _start,
+        uint256 _cliffDuration,
+        uint256 _vestingDuration,
+        bool    _revocable,
+        address _beneficiary
+    ) {
+        require(_beneficiary != address(0), "Invalid beneficiary");
+        owner           = msg.sender;
+        beneficiary     = _beneficiary;
+        start = _start < block.timestamp ? block.timestamp : _start;
+        cliff           = start + _cliffDuration;
+        vestingDuration = _vestingDuration;
+        revocable       = _revocable;
+        beneficiary     = _beneficiary;
     }
 
     function release(uint256 totalBalance) public {
@@ -38,18 +47,21 @@ abstract contract TokenVesting {
     function vestedAmount(uint256 totalBalance) public view returns (uint256) {
         if (block.timestamp < cliff) {
             return 0;
-        } else if (block.timestamp >= start + vestingDuration || revoked) {
+        } else if (block.timestamp >= start + vestingDuration) {
             return totalBalance;
-        } else {
-            return (totalBalance * (block.timestamp - start)) / vestingDuration;
+        } else if (revoked) {
+             return (totalBalance * (cliff > block.timestamp ? 0 : (block.timestamp - start))) / vestingDuration;
         }
     }
 
-    function revoke() public {
+    function revoke(uint256 totalBalance) public {
         require(revocable, "Vesting is not revocable");
         require(msg.sender == owner, "Only owner can revoke");
         require(!revoked, "Vesting already revoked");
+        uint256 vested    = vestedAmount(totalBalance);
+        uint256 unvested  = totalBalance - vested;
         revoked = true;
+        _transferVestedTokens(owner, unvested);
         emit VestingRevoked();
     }
 }
