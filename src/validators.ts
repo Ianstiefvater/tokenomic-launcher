@@ -155,26 +155,11 @@ export async function validateInputs(inputs: any): Promise<void> {
   
     // --- Transaction Fee Configuration ---
     if (inputs.enableTransactionFee) {
-      const pctTransactionFee = Number(inputs.pctTransactionFee);
-      if (
-        isNaN(pctTransactionFee) ||
-        pctTransactionFee < 0 ||
-        pctTransactionFee > 10000
-      ) {
-        throw new Error("Transaction fee percentage must be between 0 and 10000.");
-      }
-      if (!inputs.feeDistribution || typeof inputs.feeDistribution !== "object") {
-        throw new Error("Fee distribution must be provided as an object.");
-      }
-      const feeDistValues = Object.values(inputs.feeDistribution);
-      const sumFeeDist = feeDistValues.reduce(
-        (sum: number, val: any) => sum + Number(val),
-        0
-      );
-      if (sumFeeDist !== 100) {
-        throw new Error("Fee distribution percentages must sum to 100.");
+      if (!inputs.commissionReceiver) {
+        throw new Error("commissionReceiver must be provided.");
       }
     }
+
   
     // --- Staking and Yield Farming Configuration ---
     if (inputs.enableStaking) {

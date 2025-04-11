@@ -38,15 +38,7 @@
   "vestingBeneficiary": "0x1111111111111111111111111111111111111111",
 
   "enableTransactionFee": true,
-  "pctTransactionFee": "200",
-  "feeDistribution": {
-    "Burning": 30,
-    "Rewards": 40,
-    "DevFund": 30
-  },
-  "commissionReceiver": "0x4324390459656684658657597895675426056467",
-  "rewardsReceiver": "0x5646346245029345896573439578494850656865",
-  "devFundReceiver": "0x3455466637578767879546265637687987984353",
+  "commissionReceiver": "0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a",
   "enableStaking": true,
   "stakingRewardRate": "5",       
   "minStakingPeriod": "86400",    

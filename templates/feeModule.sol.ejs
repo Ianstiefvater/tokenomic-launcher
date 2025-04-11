@@ -1,37 +1,18 @@
 abstract contract FeeModule {
-    function _transfer(address from, address to, uint256 amount) internal virtual;
-    function _burn(address account, uint256 amount) internal virtual;
-
     uint256 public constant DEVELOPER_FEE_BP = 10; 
 
-    uint256 public pctTransactionFee = <%= pctTransactionFee %>;
 
+    address public immutable commissionReceiver;
 
-    uint256 public pctRewards = <%= feeDistribution.Rewards %>;
-    uint256 public pctDevFund = <%= feeDistribution.DevFund %>;
-    uint256 public pctBurning = <%= feeDistribution.Burning %>;
-
-    address public immutable commissionReceiver; // Developer fee
-    address public immutable rewardsReceiver;
-    address public immutable devFundReceiver;
-
-    constructor(
-        address _commissionReceiver,
-        address _rewardsReceiver,
-        address _devFundReceiver
-    ) {
+    constructor(address _commissionReceiver) {
         require(_commissionReceiver != address(0), "Invalid commission address");
-        require(_rewardsReceiver != address(0), "Invalid rewards address");
-        require(_devFundReceiver != address(0), "Invalid devFund address");
         commissionReceiver = _commissionReceiver;
-        rewardsReceiver = _rewardsReceiver;
-        devFundReceiver = _devFundReceiver;
     }
 
-
-    function _calculateTotalFee(uint256 amount) internal view returns (uint256) {
-        return (amount * pctTransactionFee) / 10000;
+    function _calculateTotalFee(uint256 amount) public view returns (uint256) {
+        return _calculateDeveloperFee(amount);
     }
+
 
 
     function _calculateDeveloperFee(uint256 amount) internal pure returns (uint256) {
@@ -39,40 +20,11 @@ abstract contract FeeModule {
     }
 
 
-    function _calculateDistributionFee(uint256 amount) internal view returns (uint256) {
-        uint256 totalFee = _calculateTotalFee(amount);
-        uint256 developerFee = _calculateDeveloperFee(amount);
-        require(totalFee >= developerFee, "Total fee must be >= developer fee");
-        return totalFee - developerFee;
+    function _processFees(address sender, uint256 amount) internal returns (uint256) {
+        uint256 devFee = _calculateDeveloperFee(amount);
+        _feeTransfer(sender, commissionReceiver, devFee);
+        return devFee;
     }
-
-
-    function _distributeDeveloperFee(uint256 amount) internal {
-        uint256 developerFee = _calculateDeveloperFee(amount);
-
-        _transfer(address(this), commissionReceiver, developerFee);
-    }
-
-
-    function _distributeDistributionFee(uint256 amount) internal {
-        uint256 distributionFee = _calculateDistributionFee(amount);
-        uint256 burningAmount = (distributionFee * pctBurning) / 100;
-        uint256 rewardsAmount = (distributionFee * pctRewards) / 100;
-        uint256 devFundAmount = (distributionFee * pctDevFund) / 100;
-        
-
-        _burn(address(this), burningAmount);
-
-        _transfer(address(this), rewardsReceiver, rewardsAmount);
-        _transfer(address(this), devFundReceiver, devFundAmount);
-    }
-
-    function _processFees(uint256 amount) internal returns (uint256 totalFee) {
-        totalFee = _calculateTotalFee(amount);
-        _distributeDeveloperFee(amount);
-        _distributeDistributionFee(amount);
-        return totalFee;
-    }
+    function _feeTransfer(address from, address to, uint256 amount) internal virtual;
 
 }
-

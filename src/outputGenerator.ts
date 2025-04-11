@@ -72,11 +72,7 @@ function generateReadme(inputs: any): string {
   if (inputs.enableTransactionFee) {
     readme += `## Transaction Fee\n`;
     readme += `Transaction Fee: ${inputs.pctTransactionFee}%\n`;
-    readme += `Fee Distribution:\n`;
-    for (const [option, percentage] of Object.entries(inputs.feeDistribution)) {
-      readme += `- ${option}: ${percentage}%\n`;
-    }
-    readme += `\n`;
+
   }
 
   // Staking / Yield Farming section

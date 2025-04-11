@@ -17,28 +17,29 @@ const ethers = (hre as any).ethers;
  */
 function createFullContractTest(originalPath: string, destinationPath: string): void {
   console.log(`Creando contractTest.sol en: ${destinationPath}`);
-  const code = fs.readFileSync(originalPath, 'utf8');
-  // Reemplazar todas las ocurrencias de "internal" por "public"
-  let modifiedCode = code.replace(/\binternal\b/g, "public");
-  
-  // Revertir el cambio para la función _transfer:
-  // Busca líneas que definan "function _transfer(...)" con "public override(ERC20, FeeModule)"
-  // y reemplázalas por "function _transfer(...) internal virtual override(ERC20, FeeModule)"
-  modifiedCode = modifiedCode.replace(
-    /function\s+_transfer\([^)]*\)\s+public\s+override\(([^)]*)\)/g,
-    (match, p1) => match.replace("public", "internal virtual")
+  let code = fs.readFileSync(originalPath, 'utf8');
+  // 1) Detecta y "enmascara" el `internal` de la firma de _transfer(...)
+
+  // 1) Haz global internal → public
+  code = code.replace(/\binternal\b/g, "public");
+
+  // 2) Elimina la firma abstracta de FeeModule._transfer(...)
+  //    function _transfer(...) public virtual;
+  code = code.replace(
+    /function\s+_feeTransfer\([^)]*\)\s+public\s+virtual;/g,
+    "function _feeTransfer(address from, address to, uint256 amount) internal virtual;"
   );
 
-  // De igual forma para _burn:
-  modifiedCode = modifiedCode.replace(
-    /function\s+_burn\([^)]*\)\s+public\s+override\(([^)]*)\)/g,
-    (match, p1) => match.replace("public", "internal virtual")
+  code = code.replace(
+    /function\s+_feeTransfer\([^)]*\)\s+public\s+override\s*\(\s*FeeModule\s*\)\s*\{[\s\S]*?\}/g,
+    `function _feeTransfer(address from, address to, uint256 amount) internal override(FeeModule) {
+        ERC20._transfer(from, to, amount);
+    }`
   );
 
-  fs.writeFileSync(destinationPath, modifiedCode, 'utf8');
+  fs.writeFileSync(destinationPath, code, "utf8");
   console.log(`Created contractTest.sol`);
 }
-
 // Función que genera la cadena de argumentos del constructor a partir del JSON de entrada
 function generateAllConstructorArgs(inputData: any, ownerAddress: string): Record<string, any[]> {
   const args: Record<string, any[]> = {
@@ -96,21 +97,9 @@ function generateAllConstructorArgs(inputData: any, ownerAddress: string): Recor
   }
 
   if (inputData.enableTransactionFee) {
-    args['basic'].push(
-      inputData.commissionReceiver,
-      inputData.rewardsReceiver,
-      inputData.devFundReceiver
-    );
-    args['security'].push(
-      inputData.commissionReceiver,
-      inputData.rewardsReceiver,
-      inputData.devFundReceiver
-    );
-    args['gas'].push(
-      inputData.commissionReceiver,
-      inputData.rewardsReceiver,
-      inputData.devFundReceiver
-    );
+    args['basic'].push(inputData.commissionReceiver);
+    args['security'].push(inputData.commissionReceiver);
+    args['gas'].push(inputData.commissionReceiver);
   }
 
   if (inputData.enableStaking) {

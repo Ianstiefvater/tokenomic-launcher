@@ -6,6 +6,8 @@ contract <%= tokenName %> is ERC20
   <% if (enableStaking) { %>, StakingModule<% } %>
   <% if (enableGovernance) { %>, GovernanceModule<% } %>
 {
+
+
 <% if (enableDeflation) { %>
     // Resolve burn conflict
     function _deflationBurn(address account, uint256 amount) internal override {
@@ -57,33 +59,28 @@ contract <%= tokenName %> is ERC20
   <% if (enableTransactionFee) { %>
 
     function transfer(address to, uint256 amount) public override returns (bool) {
-        _processFees(amount);
-        return super.transfer(to, amount);
+      if (msg.sender == commissionReceiver || to == address(this)) {
+         return super.transfer(to, amount);
+      }
+      uint256 devFee = _processFees(msg.sender, amount);
+      return super.transfer(to, amount - devFee);
+  }
+
+  function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+    if (from == commissionReceiver || to == address(this)) {
+          return super.transferFrom(from, to, amount);
+      }
+     uint256 devFee = _processFees(from, amount);
+      return super.transferFrom(from, to, amount - devFee);
     }
-  
-    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-        if (to == address(this) || from == address(this)) {
-            return super.transferFrom(from, to, amount);
-        }
-       _processFees(amount);
-       return super.transferFrom(from, to, amount);
+    function _feeTransfer(address from, address to, uint256 amount)
+        internal override(FeeModule)
+    {
+        ERC20._transfer(from, to, amount);
     }
   
     receive() external payable {}
-    function _transfer(address from, address to, uint256 amount)
-        internal
-        override(ERC20, FeeModule)
-    {
-        super._transfer(from, to, amount);
-    }
-
-    function _burn(address account, uint256 amount)
-        internal
-        override(ERC20, FeeModule)
-    {
-        super._burn(account, amount);
-    }
-
+    
   <% } %>
   
   
@@ -108,9 +105,7 @@ contract <%= tokenName %> is ERC20
       uint256 conditionThreshold,
       uint256 conditionalInflationRate<% } %>,
       <% if (enableTransactionFee) { %>
-        address commissionReceiver,
-        address rewardsReceiver,
-        address devFundReceiver<% } %>,
+        address commissionReceiver<% } %>,
       <% if (enableStaking) { %>
       uint256 stakingRewardRate,
       uint256 minStakingPeriod<% } %>,
@@ -128,8 +123,9 @@ contract <%= tokenName %> is ERC20
       <% if (enableVesting) { %>
       TokenVesting(vestingStart, cliffDuration, vestingDuration, revocable, vestingBeneficiary)<% } %><% if (enableDeflation) { %>
       DeflationModule(buybackFrequency, buybackPercentage)<% } %><% if (enableTransactionFee) { %>
-        FeeModule(commissionReceiver, rewardsReceiver, devFundReceiver)<% } %><% if (enableStaking) { %>
-      StakingModule()<% } %><% if (enableGovernance) { %>
+        FeeModule(commissionReceiver)<% } %><% if (enableStaking) { %>
+      StakingModule()<% } %>
+      <% if (enableGovernance) { %>
       GovernanceModule()<% } %>
   {
       require(teamAddresses.length == teamPercentages.length, "Arrays must have the same length");

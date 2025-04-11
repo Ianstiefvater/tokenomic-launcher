@@ -49,8 +49,9 @@ abstract contract TokenVesting {
             return 0;
         } else if (block.timestamp >= start + vestingDuration) {
             return totalBalance;
-        } else if (revoked) {
-             return (totalBalance * (cliff > block.timestamp ? 0 : (block.timestamp - start))) / vestingDuration;
+        } else {
+            uint256 elapsed = block.timestamp - start;
+            return (totalBalance * elapsed) / vestingDuration;
         }
     }
 

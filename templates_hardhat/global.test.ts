@@ -49,9 +49,12 @@ describe("Global Token Tests", function () {
 
     it("Should transfer tokens correctly", async function () {
       const initialBalance = await token.balanceOf(addr1.address);
-      await token.transfer(addr1.address, parseEther("100"));
+      const transferAmount = parseEther("100");
+      const devFee = await token._calculateDeveloperFee(transferAmount);
+
+      await token.transfer(addr1.address, transferAmount);
       const finalBalance = await token.balanceOf(addr1.address);
-      expect(finalBalance - initialBalance).to.equal(parseEther("100"));
+      expect(finalBalance - initialBalance).to.equal(transferAmount - devFee);
     });
 
     it("Should approve and set allowance correctly", async function () {
@@ -59,12 +62,6 @@ describe("Global Token Tests", function () {
       const allowance = await token.allowance(owner.address, addr2.address);
       expect(allowance).to.equal(parseEther("50"));
     }); 
-    it("Should mint developer allocation (1%) to the dev wallet", async function () {
-      const devAddress = "0x3E6Fa2F16b357deDAde5210Fa52Cbd2DFaa69f9a";
-      const expectedDevAmount = initialTotalSupply / BigInt(100); 
-      const actualDevBalance  = await token.balanceOf(devAddress);
-      expect(actualDevBalance).to.equal(expectedDevAmount);
-    })
   });
   // ---------- Distribution Tests ----------
   describe("Team Allocation Tests", function () {
@@ -84,95 +81,38 @@ describe("Global Token Tests", function () {
     });
   });
 
-  // ---------- Fee Module Tests ----------
-  describe("Fee Module Tests", function () {
-    before(function () {
-      if (!inputData.enableTransactionFee) {
-        this.skip();
-      }
-    });
-
-    it("Should calculate fee breakdown correctly", async function () {
-      const transferAmount = parseEther("100");
-      const totalFee = await token._calculateTotalFee(transferAmount);
-      const developerFee = await token._calculateDeveloperFee(transferAmount);
-      const distributionFee = await token._calculateDistributionFee(transferAmount);
-      const pctTransactionFee = await token.pctTransactionFee(); 
-
-      const expectedTotalFee = (transferAmount * BigInt(pctTransactionFee.toString())) / BigInt(10000);
-      const expectedDeveloperFee = (transferAmount * BigInt(10)) / BigInt(10000);
-      const expectedDistributionFee = expectedTotalFee - expectedDeveloperFee;
-
-      expect(totalFee.toString()).to.equal(expectedTotalFee.toString());
-      expect(developerFee.toString()).to.equal(expectedDeveloperFee.toString());
-      expect(distributionFee.toString()).to.equal(expectedDistributionFee.toString());
-    });
-
-    it("Should distribute developer fee on transfer", async function () {
-      const commissionReceiver = await token.commissionReceiver(); 
-      const beforeBal = await ethers.provider.getBalance(commissionReceiver);
-  
-      const transferAmount = parseEther("100");
-      const tx      = await token.connect(addr1).transfer(addr2.address, transferAmount);
-      const receipt = await tx.wait();
-  
-      const expectedFee = transferAmount * BigInt(10) / BigInt(10000);
-      const afterBal    = await ethers.provider.getBalance(commissionReceiver);
-  
-      expect(afterBal - beforeBal).to.be.gte(expectedFee);
-    });
-    it("Should distribute fees correctly on transfer", async function () {
-      // Obtener direcciones de distribución
-      const commissionReceiver = await token.commissionReceiver();
-      const rewardsReceiver = await token.rewardsReceiver();
-      const devFundReceiver = await token.devFundReceiver();
-    
-      // Balances previos (en tokens)
-      const beforeBalCommission = await token.balanceOf(commissionReceiver);
-      const beforeBalRewards = await token.balanceOf(rewardsReceiver);
-      const beforeBalDevFund = await token.balanceOf(devFundReceiver);
-      const beforeTotalSupply = await token.totalSupply();
-    
-      const transferAmount = parseEther("100");
-      // Ejecutar transferencia que procese los fees
-      const tx = await token.connect(addr1).transfer(addr2.address, transferAmount);
-      await tx.wait();
-    
-      // Calcular los fees esperados
-      const totalFeeBN = await token._calculateTotalFee(transferAmount);
-      const developerFeeBN = await token._calculateDeveloperFee(transferAmount);
-      // La fee de distribución es el remanente
-      const distributionFeeBN = totalFeeBN.sub(developerFeeBN);
-    
-      // Convertir porcentajes a BigInt (se esperan como números, p.ej. 20, 50, 30)
-      const pctBurning = BigInt((await token.pctBurning()).toString());
-      const pctRewards = BigInt((await token.pctRewards()).toString());
-      const pctDevFund = BigInt((await token.pctDevFund()).toString());
-    
-      const distributionFeeBig = BigInt(distributionFeeBN.toString());
-      const expectedBurning = (distributionFeeBig * pctBurning) / BigInt(100);
-      const expectedRewards = (distributionFeeBig * pctRewards) / BigInt(100);
-      const expectedDevFund = (distributionFeeBig * pctDevFund) / BigInt(100);
-    
-      // Verificar que commissionReceiver reciba el Developer Fee
-      const afterBalCommission = await token.balanceOf(commissionReceiver);
-      expect(afterBalCommission.sub(beforeBalCommission)).to.equal(developerFeeBN);
-    
-      // Verificar que rewardsReceiver reciba su parte de la fee de distribución
-      const afterBalRewards = await token.balanceOf(rewardsReceiver);
-      expect(afterBalRewards.sub(beforeBalRewards)).to.equal(BigNumber.from(expectedRewards.toString()));
-    
-      // Verificar que devFundReceiver reciba su parte de la fee de distribución
-      const afterBalDevFund = await token.balanceOf(devFundReceiver);
-      expect(afterBalDevFund.sub(beforeBalDevFund)).to.equal(BigNumber.from(expectedDevFund.toString()));
-    
-      // Verificar que se hayan quemado los tokens correspondientes (reducción del totalSupply)
-      const afterTotalSupply = await token.totalSupply();
-      expect(beforeTotalSupply.sub(afterTotalSupply)).to.equal(BigNumber.from(expectedBurning.toString()));
-    });
-    
+// ---------- Fee Module Tests ----------
+describe("Fee Module Tests", function () {
+  before(async function () {
+    if (!inputData.enableTransactionFee) this.skip();
+    await token.transfer(addr1.address, parseEther("100"));
 
   });
+
+  it("Should calculate and process developer fee correctly", async function () {
+    const transferAmount = parseEther("100"); 
+    const devFee         = await token._calculateDeveloperFee(transferAmount);
+    const expectedDevFee = (transferAmount * BigInt(10)) / BigInt(10000); 
+
+    expect(devFee).to.equal(expectedDevFee);
+  });
+
+  it("Should transfer developer fee on transfer", async function () {
+    const commission = await token.commissionReceiver();
+    const beforeBal  = await token.balanceOf(commission);
+
+    const transferAmount = parseEther("100");
+    await token.connect(addr1).transfer(addr2.address, transferAmount);
+
+    const devFee = await token._calculateDeveloperFee(transferAmount);
+    const afterBal = await token.balanceOf(commission);
+
+    expect(afterBal - beforeBal).to.equal(devFee);
+  });
+});
+
+
+
   // ---------- Security Tests ----------
   describe("Security Tests", function () {
     it("Should revert on arithmetic overflow/underflow", async function () {
@@ -531,21 +471,31 @@ describe("Global Token Tests", function () {
     });
 
     it("Should vest proportionally during vesting period", async function () {
-      const last  = await ethers.provider.getBlock("latest");
-      const start = Number(await token.start());
-      if (!last) throw new Error("No se pudo obtener el último bloque");
-  
-      // Calculamos el offset necesario para estar a la mitad del vesting
-      const half = Math.floor(vestingDuration / 2);
-      const baseOffset = last.timestamp - start;
-      const desiredOffset = half;
-      const nextTs = last.timestamp + (desiredOffset - baseOffset);
-  
-      await ethers.provider.send("evm_setNextBlockTimestamp", [nextTs]);
+      const start   = Number(await token.start());
+      const cliff   = Number(await token.cliff());
+      const vestDur = Number(await token.vestingDuration());
+    
+
+      const end = start + vestDur;
+      const targetTs = cliff + Math.floor((end - cliff) / 2);
+    
+    
+      await ethers.provider.send("evm_setNextBlockTimestamp", [targetTs]);
       await ethers.provider.send("evm_mine", []);
-  
-      const vested = await token.vestedAmount(totalBalance);
-      const expected = BigInt(totalBalance.toString()) * BigInt(half) / BigInt(vestingDuration);
+
+      const blockAfter = await ethers.provider.getBlock("latest");
+      if (!blockAfter) {
+        throw new Error("No se pudo obtener el último bloque");
+      }
+    
+      const vested  = await token.vestedAmount(totalBalance);
+      console.log("vested:", vested.toString());
+    
+      const elapsed  = blockAfter.timestamp - start;
+    
+      // expected = totalBalance * (timestamp - start) / vestDur
+      const expected = BigInt(totalBalance.toString()) * BigInt(elapsed) / BigInt(vestDur);
+    
       expect(vested.toString()).to.equal(expected.toString());
     });
     
